@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calendario Auditorium</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#"><span class="brand-icon">✳</span><span>AUDITORIUM<small>VEROLANUOVA</small></span></a>
+    <div class="sidebar-label">SPAZIO CONDIVISO</div>
+    <div class="nav-active"><span>▦</span> Calendario <span class="nav-arrow">↗</span></div>
+    <div class="sidebar-label calendar-label">I CALENDARI</div>
+    <button type="button" class="calendar-key" data-calendar="school" aria-pressed="true"><span class="key-dot school-dot"></span><span>Scuola Mazzolari<small>00:00 – 14:00</small></span><span class="key-check" aria-hidden="true">✓</span></button>
+    <button type="button" class="calendar-key" data-calendar="town" aria-pressed="true"><span class="key-dot town-dot"></span><span>Comune di Verolanuova<small>14:00 – 00:00</small></span><span class="key-check" aria-hidden="true">✓</span></button>
+    <div class="sidebar-bottom"><div class="help-icon">✳</div><strong>Uno spazio, tante idee.</strong><p>Organizziamo insieme gli appuntamenti del nostro auditorium.</p></div>
+    <div class="sidebar-footer">AUDITORIUM VEROLANUOVA <span>↗</span></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div class="breadcrumbs">SPAZIO CONDIVISO <span>/</span> <b>CALENDARIO</b></div><div class="top-right"><span class="demo-pill"><i></i> ANTEPRIMA LOCALE</span><button class="profile-button" id="profileButton" aria-label="Apri menu account"><span class="avatar" id="avatar">C</span><span class="profile-text"><b id="profileName">CED</b><small>Profilo dimostrativo</small></span><span>⌄</span></button></div></header>
+    <section class="content">
+      <div class="heading"><div><div class="eyebrow"><span></span> IL TUO SPAZIO, ORGANIZZATO</div><h1>Calendario <em>auditorium.</em></h1><p>Tutti gli appuntamenti, in un unico posto.</p></div></div>
+      <div class="notice"><span class="notice-icon">i</span><span><b>Un calendario, due realtà.</b> La scuola gestisce la fascia fino alle 14:00, il Comune quella successiva.</span><span class="notice-spark">✳</span></div>
+      <div class="calendar-card">
+        <div class="calendar-header"><div class="calendar-toolbar"><div class="date-controls"><button id="today" class="today-button">Oggi</button><div class="arrows"><button id="prev" aria-label="Periodo precedente">‹</button><button id="next" aria-label="Periodo successivo">›</button></div><h2 id="periodTitle"></h2></div><div class="calendar-actions"><button class="primary-button" id="newEvent"><span>＋</span> Nuovo evento</button><div class="view-switch" aria-label="Vista calendario"><button data-view="day">Giorno</button><button data-view="week">Settimana</button><button data-view="month" class="selected">Mese</button></div></div></div>
+        <div class="legend"><span><i class="school-dot"></i> Scuola Mazzolari <small>00:00 – 14:00</small></span><span><i class="town-dot"></i> Comune di Verolanuova <small>14:00 – 00:00</small></span><span class="legend-note">ORA LOCALE · EUROPA/ROMA</span></div>
+        </div><div class="calendar-scroll"><div id="calendar"></div></div>
+        <div class="calendar-footer"><span><i></i> SPAZIO CONDIVISO, TEMPO BEN ORGANIZZATO</span><span>CALENDARIO AUDITORIUM <b>✳</b></span></div>
+      </div>
+      <div class="bottom-note"><span>✳</span> <div><b>Un posto per ogni momento.</b> <span>Consulta le disponibilità e organizza il prossimo evento.</span></div></div>
+      <footer>© CALENDARIO AUDITORIUM · VEROLANUOVA <span>FATTO PER CONDIVIDERE <b>✳</b></span></footer>
+    </section>
+  </main>
+  <dialog id="eventDialog"><form id="eventForm"><div class="dialog-head"><div><div class="eyebrow" id="eventEyebrow">NUOVO APPUNTAMENTO</div><h2 id="eventHeading">Organizza un evento.</h2></div><button type="button" class="close" data-close="eventDialog" aria-label="Chiudi">×</button></div><label>Titolo<input name="title" required maxlength="100" placeholder="Es. Prova spettacolo"></label><label>Ente<select name="owner" id="owner"><option value="school">Scuola Mazzolari</option><option value="town">Comune di Verolanuova</option></select></label><div class="form-row"><label>Data<input name="date" type="date" required></label><label>Inizio<input name="start" type="time" required></label><label>Fine<input name="end" type="time" required></label></div><label>Note <span class="optional">(facoltative)</span><textarea name="notes" rows="3" placeholder="Aggiungi qualche dettaglio"></textarea></label><p class="form-hint">Gli orari indicano la consueta organizzazione degli enti e non limitano la scelta. Gli eventi sono salvati solo su questo dispositivo.</p><p id="overlapWarning" class="overlap-warning" role="status" aria-live="polite" hidden></p><p id="formError" class="error" role="alert"></p><div class="dialog-actions"><button type="button" class="secondary-button" data-close="eventDialog">Annulla</button><button class="primary-button" id="saveEvent" type="button">Salva evento</button></div></form></dialog>
+  <dialog id="profileDialog"><div class="dialog-head"><div><div class="eyebrow">ACCOUNT DIMOSTRATIVO</div><h2 id="accountName"></h2></div><button class="close" data-close="profileDialog" aria-label="Chiudi">×</button></div><p class="dialog-copy">Hai effettuato l’accesso a questo profilo di prova. Puoi uscire e accedere con un altro account.</p><div class="dialog-actions"><button id="logoutButton" class="secondary-button" type="button">Esci dall’account</button></div></dialog>
+  <dialog id="detailsDialog"><div class="dialog-head"><div><div class="eyebrow" id="detailsOwner"></div><h2 id="detailsTitle"></h2></div><button class="close" data-close="detailsDialog" aria-label="Chiudi">×</button></div><p id="detailsTime"></p><p id="detailsNotes"></p><div class="dialog-actions"><button id="deleteEvent" class="delete-button">Elimina evento</button><button id="editEvent" class="primary-button" type="button">Modifica evento</button><button class="secondary-button" data-close="detailsDialog">Chiudi</button></div></dialog>
+  <script src="app.js"></script>
+</body></html>

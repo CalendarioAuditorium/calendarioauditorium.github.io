@@ -3,6 +3,8 @@
   const storageKey = 'auditorium-events-v1';
   const profiles = {ced:'CED', school:'Scuola Mazzolari', town:'Comune di Verolanuova'};
   const ownerNames = {school:'Scuola Mazzolari', town:'Comune di Verolanuova'};
+  // Numeri da configurare quando comunicati dagli enti.
+  const phoneNumbers = {school: '', town: ''};
   const romeToday = () => new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Rome', year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const dateFromKey = key => { const [y,m,d] = key.split('-').map(Number); return new Date(y,m-1,d,12); };
   const keyFromDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -62,7 +64,12 @@
     const startHour=hour!==undefined?hour:(owner==='town'?14:9);form.elements.start.value=`${String(startHour).padStart(2,'0')}:00`;form.elements.end.value=startHour===23?'00:00':`${String(startHour+1).padStart(2,'0')}:00`;
     $('#formError').textContent='';updateOverlapWarning();$('#eventDialog').showModal();
   }
-  function showDetails(event){selectedId=event.id;$('#detailsOwner').textContent=ownerNames[event.owner];$('#detailsTitle').textContent=event.title;$('#detailsTime').textContent=`${format(dateFromKey(event.date),{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${event.start} – ${event.end}`;$('#detailsNotes').textContent=event.notes || 'Nessuna nota.';$('#deleteEvent').hidden=false;$('#detailsDialog').showModal();}
+  function showDetails(event){selectedId=event.id;$('#detailsOwner').textContent=ownerNames[event.owner];$('#detailsTitle').textContent=event.title;$('#detailsTime').textContent=`${format(dateFromKey(event.date),{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${event.start} – ${event.end}`;$('#detailsNotes').textContent=event.notes || 'Nessuna nota.';$('#deleteEvent').hidden=false;
+    const conflicts=events.filter(other=>other.id!==event.id && other.owner!==event.owner && other.date===event.date && minutes(event.start)<minutes(other.end,true) && minutes(event.end,true)>minutes(other.start));
+    const contactArea=$('#conflictContact'), buttons=$('#contactButtons');buttons.replaceChildren();contactArea.hidden=conflicts.length===0;
+    if(conflicts.length){const targets=profile==='ced'?['school','town']:[profile==='school'?'town':'school'];targets.forEach(owner=>{const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=`Chiama ${ownerNames[owner]}`;button.addEventListener('click',()=>showContact(owner));buttons.append(button);});}
+    $('#detailsDialog').showModal();}
+  function showContact(owner){const phone=phoneNumbers[owner],link=$('#contactCall');$('#contactTitle').textContent=ownerNames[owner];$('#contactNumber').textContent=phone ? `Numero: ${phone}` : 'Numero di telefono non ancora configurato.';link.hidden=!phone;if(phone)link.href=`tel:${phone.replace(/[^+\d]/g,'')}`;else link.removeAttribute('href');$('#contactDialog').showModal();}
   $('#editEvent').addEventListener('click',()=>{const event=events.find(item=>item.id===selectedId);if(!event)return;$('#detailsDialog').close();openEvent(event.date);editingId=event.id;const form=$('#eventForm');form.elements.title.value=event.title;form.elements.owner.value=event.owner;form.elements.date.value=event.date;form.elements.start.value=event.start;form.elements.end.value=event.end;form.elements.notes.value=event.notes;$('#eventEyebrow').textContent='MODIFICA APPUNTAMENTO';$('#eventHeading').textContent='Modifica evento.';updateOverlapWarning();});
   function saveEvent(){const f=$('#eventForm');if(!f.reportValidity())return;const owner=f.elements.owner.value, start=minutes(f.elements.start.value), end=minutes(f.elements.end.value,true), error=$('#formError');
     if(!f.elements.title.value.trim()){error.textContent='Inserisci un titolo.';return;}

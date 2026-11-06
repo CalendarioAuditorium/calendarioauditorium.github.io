@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+import {createEvent,deleteEvent,findConflicts,listEvents,updateEvent} from '../server/events.mjs';
+function database(){const sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync('migrations/0001_events.sql','utf8'));return {prepare(sql){let values=[];return {bind(...args){values=args;return this},async run(){const result=sqlite.prepare(sql).run(...values);return {meta:{changes:Number(result.changes)}}},async all(){return {results:sqlite.prepare(sql).all(...values)}},async first(){return sqlite.prepare(sql).get(...values) || null}}}};}
+const identity={id:'utente-test',role:'school'};
+const input={title:' Prova ',owner:'town',date:'2026-11-06',startMinute:540,endMinute:600,notes:'Sala'};
+test('salvataggio, modifica e rimozione su un database condiviso',async()=>{const db=database();const e=await createEvent(db,identity,input);assert.equal(e.title,'Prova');assert.equal(e.createdBy,'utente-test');assert.equal((await listEvents(db,{id:'altro',role:'town'})).length,1);const updated=await updateEvent(db,identity,e.id,{...input,title:'Modificato'});assert.equal(updated.title,'Modificato');assert.equal(await deleteEvent(db,identity,e.id),true);assert.equal((await listEvents(db,identity)).length,0);assert.equal(await deleteEvent(db,identity,e.id),false)});
+test('richiede identità e rifiuta dati non validi',async()=>{const db=database();await assert.rejects(createEvent(db,null,input));await assert.rejects(createEvent(db,identity,{...input,date:'2026-02-31'}));await assert.rejects(createEvent(db,identity,{...input,endMinute:500}));assert.equal((await listEvents(db,identity)).length,0)});
+
+test('rileva solo gli intervalli realmente sovrapposti nello stesso giorno',async()=>{const db=database();const first=await createEvent(db,identity,input);await createEvent(db,identity,{...input,title:'contiguo',startMinute:600,endMinute:660});await createEvent(db,identity,{...input,title:'altro giorno',date:'2026-11-07'});assert.equal((await findConflicts(db,identity,{...input,startMinute:570,endMinute:600})).length,1);assert.equal((await findConflicts(db,identity,{...input,startMinute:570,endMinute:600},first.id)).length,0);});

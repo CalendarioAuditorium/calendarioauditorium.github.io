@@ -3,8 +3,7 @@
   const storageKey = 'auditorium-events-v1';
   const profiles = {ced:'CED', school:'Scuola Mazzolari', town:'Comune di Verolanuova'};
   const ownerNames = {school:'Scuola Mazzolari', town:'Comune di Verolanuova'};
-  // Numeri da configurare quando comunicati dagli enti.
-  const phoneNumbers = {school: '', town: ''};
+  const phoneNumbers = {school: '+39 030 931 101', town: '+39 030 936 5010'};
   const romeToday = () => new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Rome', year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const dateFromKey = key => { const [y,m,d] = key.split('-').map(Number); return new Date(y,m-1,d,12); };
   const keyFromDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;

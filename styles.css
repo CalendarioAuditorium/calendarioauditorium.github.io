@@ -65,3 +65,9 @@ body[data-profile="school"] .eyebrow>span{background:#dc9a68}
 .login-dialog{max-width:440px;padding:36px}.login-dialog::backdrop{background:#26382fe0}.login-brand{display:flex;align-items:center;gap:10px;margin-bottom:40px;font:800 12px Manrope,sans-serif;letter-spacing:1px}.login-brand small{display:block;color:#9ba69d;font:700 9px 'DM Sans',sans-serif;letter-spacing:2px;margin-top:3px}.login-dialog h2{font:800 26px Manrope,sans-serif;letter-spacing:-1px;margin:10px 0}.login-dialog label{margin:20px 0}.login-submit{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px}.login-submit span{margin:0;font-size:16px;line-height:1}.login-note{background:#f5f7f3;border-radius:8px;padding:12px;color:#859388;font-size:11px;line-height:1.5;margin:20px 0 0}
 
 .login-page{min-height:100vh;display:grid;place-items:center;padding:24px;background:#f2f6f0}.login-card{width:min(440px,100%);background:#fff;border:1px solid #e7eee6;border-radius:16px;padding:36px;box-shadow:0 16px 50px #203a2912}.login-card h1{font:800 26px Manrope,sans-serif;letter-spacing:-1px;margin:10px 0}.login-card label{margin:20px 0}@media(max-width:480px){.login-card{padding:26px}}
+
+/* Nella vista mese ogni giorno si espande per mostrare tutti gli eventi. */
+.month-day{height:auto;min-height:112px;min-width:0}
+.month-event{white-space:normal;overflow:visible;line-height:1.4;padding:6px;text-overflow:clip}
+.month-event b,.month-event small{display:block;overflow-wrap:anywhere}
+.month-event small{font-size:9px;margin-top:3px}

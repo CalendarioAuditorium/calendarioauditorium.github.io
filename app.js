@@ -21,7 +21,7 @@
     if (overlapping) { button.classList.add('has-overlap'); button.title = 'Attenzione: evento sovrapposto a un altro appuntamento'; button.setAttribute('aria-label', `${event.title}, ${event.start}–${event.end}. Attenzione: evento sovrapposto a un altro appuntamento`); }
     const title = document.createElement('b'); title.textContent = event.title;
     if (className === 'event') { const time = document.createElement('small'); time.textContent = `${event.start} – ${event.end}`; button.append(title,time); button.style.top = `${minutes(event.start)*0.8}px`; button.style.height = `${Math.max((minutes(event.end,true)-minutes(event.start))*0.8,22)}px`; }
-    else button.append(title);
+    else { const time = document.createElement('small'); time.textContent = `${event.start} – ${event.end}`; button.append(title,time); }
     button.addEventListener('click', e => {e.stopPropagation(); showDetails(event);}); return button;
   }
   function render() {

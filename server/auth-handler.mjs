@@ -1,4 +1,4 @@
-import {authenticate,createSession,getSession,revokeSession,changePassword,createUser} from './identity.mjs';
+import {authenticate,createSession,getSession,revokeSession,changePassword,createUser,bootstrapAdmin} from './identity.mjs';
 
 const cookieName='__Host-auditorium';
 const json=(value,status=200,headers={})=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',...headers}});
@@ -21,7 +21,7 @@ async function body(request){
 }
 
 /** Logica in preparazione: non pubblicare senza configurazione, verifica Cloudflare e revisione. */
-export async function handleAuth(request,db){
+export async function handleAuth(request,db,options={}){
   try{
     const url=new URL(request.url),method=request.method,action=url.pathname.split('/').pop();
     if(method==='GET' && action==='session'){
@@ -35,6 +35,14 @@ export async function handleAuth(request,db){
     }
     if(method!=='POST')return json({error:'Metodo non consentito'},405);
     if(request.headers.get('Origin')!==url.origin)return json({error:'Origine non consentita'},403);
+    if(action==='bootstrap'){
+      const ip=request.headers.get('CF-Connecting-IP'), secret=options.bootstrapToken;
+      if(!ip || ip.length>64 || typeof secret!=='string' || secret.length<32)return json({error:'Configurazione iniziale non disponibile'},503);
+      const data=await body(request),now=Math.floor(Date.now()/1000),attempt=await increment(db,`bootstrap:${ip}`,now);
+      if(attempt.attempts>10)return json({error:'Troppi tentativi. Riprova tra 15 minuti.'},429);
+      if(typeof data.setupCode!=='string' || (await hashed(data.setupCode))!==(await hashed(secret)))return json({error:'Codice non valido'},403);
+      return await bootstrapAdmin(db,data)?json({ok:true},201):json({error:'Configurazione già completata'},409);
+    }
     if(action==='login'){
       const ip=request.headers.get('CF-Connecting-IP');if(!ip || ip.length>64)return json({error:'Accesso temporaneamente non disponibile'},503);
       const data=await body(request),username=typeof data.username==='string'?data.username.slice(0,64).toLowerCase():'';

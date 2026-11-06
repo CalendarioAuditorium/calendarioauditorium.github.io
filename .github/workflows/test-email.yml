@@ -1,0 +1,25 @@
+name: Prova invio email Outlook
+
+on:
+  workflow_dispatch:
+    inputs:
+      recipient:
+        description: Indirizzo email di test a cui inviare il messaggio
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  send-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+      - name: Invia il messaggio di prova
+        env:
+          GRAPH_ACCESS_TOKEN: ${{ secrets.OUTLOOK_GRAPH_ACCESS_TOKEN }}
+          TEST_RECIPIENT: ${{ inputs.recipient }}
+        run: python3 .github/scripts/send_test_email.py

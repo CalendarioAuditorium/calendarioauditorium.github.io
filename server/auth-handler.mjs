@@ -22,6 +22,7 @@ async function body(request){
 
 /** Logica in preparazione: non pubblicare senza configurazione, verifica Cloudflare e revisione. */
 export async function handleAuth(request,db,options={}){
+  let diagnostic='AUTH';
   try{
     const url=new URL(request.url),method=request.method,action=url.pathname.split('/').pop();
     if(method==='GET' && action==='session'){
@@ -38,10 +39,10 @@ export async function handleAuth(request,db,options={}){
     if(action==='bootstrap'){
       const ip=request.headers.get('CF-Connecting-IP'), secret=options.bootstrapToken;
       if(!ip || ip.length>64 || typeof secret!=='string' || secret.length<32)return json({error:'Configurazione iniziale non disponibile'},503);
-      const data=await body(request),now=Math.floor(Date.now()/1000),attempt=await increment(db,`bootstrap:${ip}`,now);
+      const data=await body(request),now=Math.floor(Date.now()/1000);diagnostic='SETUP-DB';const attempt=await increment(db,`bootstrap:${ip}`,now);
       if(attempt.attempts>10)return json({error:'Troppi tentativi. Riprova tra 15 minuti.'},429);
       if(typeof data.setupCode!=='string' || (await hashed(data.setupCode))!==(await hashed(secret)))return json({error:'Codice non valido'},403);
-      return await bootstrapAdmin(db,data)?json({ok:true},201):json({error:'Configurazione già completata'},409);
+      diagnostic='SETUP-ACCOUNT';return await bootstrapAdmin(db,data)?json({ok:true},201):json({error:'Configurazione già completata'},409);
     }
     if(action==='login'){
       const ip=request.headers.get('CF-Connecting-IP');if(!ip || ip.length>64)return json({error:'Accesso temporaneamente non disponibile'},503);
@@ -62,5 +63,5 @@ export async function handleAuth(request,db,options={}){
       const data=await body(request);return json({user:await createUser(db,user,data)},201);
     }
     return json({error:'Operazione non trovata'},404);
-  }catch(error){if(error instanceof SyntaxError || error instanceof TypeError)return json({error:'Dati non validi'},400);return json({error:'Servizio temporaneamente non disponibile'},500);}
+  }catch(error){if(error instanceof SyntaxError || error instanceof TypeError)return json({error:'Dati non validi'},400);console.error('Errore operazione',diagnostic,'tipo',error?.name || 'Error');return json({error:`Servizio temporaneamente non disponibile (rif. ${diagnostic})`},500);}
 }

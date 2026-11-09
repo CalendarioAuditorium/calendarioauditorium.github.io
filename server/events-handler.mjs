@@ -1,4 +1,4 @@
-import {getSession} from './identity.mjs';
+import {getManagedSession} from './managed-identity.mjs';
 import {listEvents,createEvent,updateEvent,deleteEvent} from './events.mjs';
 
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
@@ -7,7 +7,7 @@ function sessionCookie(request){const cookie=request.headers.get('Cookie') || ''
 /** Non collegare a una rotta pubblica finché login, protezioni e migrazioni non sono pronti. */
 export async function handleEvents(request, db){
   try {
-    const principal=await getSession(db,sessionCookie(request));
+    const principal=await getManagedSession(db,sessionCookie(request));
     if(!principal)return json({error:'Accesso richiesto'},401);
     if(principal.mustChangePassword)return json({error:'Cambia prima la password temporanea'},403);
     const url=new URL(request.url),method=request.method;

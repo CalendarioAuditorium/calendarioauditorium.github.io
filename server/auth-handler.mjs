@@ -1,4 +1,4 @@
-import {authenticate,createSession,getSession,revokeSession,changePassword,createUser,bootstrapAdmin} from './identity.mjs';
+import {authenticateManaged,createManagedSession,getManagedSession,revokeManagedSession,changeManagedPassword,createManagedUser,bootstrapManagedAdmin} from './managed-identity.mjs';
 
 const cookieName='__Host-auditorium';
 const json=(value,status=200,headers={})=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',...headers}});
@@ -26,12 +26,12 @@ export async function handleAuth(request,db,options={}){
   try{
     const url=new URL(request.url),method=request.method,action=url.pathname.split('/').pop();
     if(method==='GET' && action==='session'){
-      const user=await getSession(db,getToken(request));return user?json({user}):json({error:'Accesso richiesto'},401);
+      const user=await getManagedSession(db,getToken(request));return user?json({user}):json({error:'Accesso richiesto'},401);
     }
     if(method==='GET' && action==='users'){
-      const user=await getSession(db,getToken(request));if(!user)return json({error:'Accesso richiesto'},401);
+      const user=await getManagedSession(db,getToken(request));if(!user)return json({error:'Accesso richiesto'},401);
       if(user.role!=='ced' || user.mustChangePassword)return json({error:'Accesso riservato al CED'},403);
-      const result=await db.prepare('SELECT id,username,display_name AS displayName,role,disabled FROM users ORDER BY username').all();
+      const result=await db.prepare('SELECT id,username,display_name AS displayName,role,disabled FROM managed_accounts ORDER BY username').all();
       return json({users:result.results});
     }
     if(method!=='POST')return json({error:'Metodo non consentito'},405);
@@ -42,25 +42,25 @@ export async function handleAuth(request,db,options={}){
       const data=await body(request),now=Math.floor(Date.now()/1000);diagnostic='SETUP-DB';const attempt=await increment(db,`bootstrap:${ip}`,now);
       if(attempt.attempts>10)return json({error:'Troppi tentativi. Riprova tra 15 minuti.'},429);
       if(typeof data.setupCode!=='string' || (await hashed(data.setupCode))!==(await hashed(secret)))return json({error:'Codice non valido'},403);
-      diagnostic='SETUP-ACCOUNT';return await bootstrapAdmin(db,data)?json({ok:true},201):json({error:'Configurazione già completata'},409);
+      diagnostic='SETUP-ACCOUNT';const created=await bootstrapManagedAdmin(db,data,options.provider);if(created===null)return json({error:'Email o password dell’account Supabase non corrette'},401);return created?json({ok:true},201):json({error:'Configurazione già completata'},409);
     }
     if(action==='login'){
       const ip=request.headers.get('CF-Connecting-IP');if(!ip || ip.length>64)return json({error:'Accesso temporaneamente non disponibile'},503);
       const data=await body(request),username=typeof data.username==='string'?data.username.slice(0,64).toLowerCase():'';
       const now=Math.floor(Date.now()/1000),[byIp,byUser]=await Promise.all([increment(db,`ip:${ip}`,now),increment(db,`username:${username}`,now)]);
       if(byIp.attempts>40 || byUser.attempts>10)return json({error:'Troppi tentativi. Riprova tra 15 minuti.'},429);
-      const user=await authenticate(db,username,data.password);if(!user)return json({error:'Nome utente o password non corretti'},401);
-      const session=await createSession(db,user,now);return json({user},200,{'Set-Cookie':cookie(session.token,session.expiresAt-now)});
+      const user=await authenticateManaged(db,{username,password:data.password,provider:options.provider});if(!user)return json({error:'Nome utente o password non corretti'},401);
+      const session=await createManagedSession(db,user,now);return json({user},200,{'Set-Cookie':cookie(session.token,session.expiresAt-now)});
     }
-    const token=getToken(request),user=await getSession(db,token);if(!user)return json({error:'Accesso richiesto'},401);
-    if(action==='logout'){await revokeSession(db,token);return json({ok:true},200,{'Set-Cookie':cookie('',0)});}
+    const token=getToken(request),user=await getManagedSession(db,token);if(!user)return json({error:'Accesso richiesto'},401);
+    if(action==='logout'){await revokeManagedSession(db,token);return json({ok:true},200,{'Set-Cookie':cookie('',0)});}
     if(action==='password'){
-      const data=await body(request);if(!await changePassword(db,user,data.currentPassword,data.newPassword))return json({error:'Password attuale non corretta'},401);
+      const data=await body(request);if(!await changeManagedPassword(db,user,data.currentPassword,data.newPassword,options.provider))return json({error:'Password attuale non corretta'},401);
       return json({ok:true},200,{'Set-Cookie':cookie('',0)});
     }
     if(action==='users'){
       if(user.role!=='ced' || user.mustChangePassword)return json({error:'Accesso riservato al CED'},403);
-      const data=await body(request);return json({user:await createUser(db,user,data)},201);
+      const data=await body(request);return json({user:await createManagedUser(db,user,data,options.provider)},201);
     }
     return json({error:'Operazione non trovata'},404);
   }catch(error){if(error instanceof SyntaxError || error instanceof TypeError)return json({error:'Dati non validi'},400);if(['SETUP-LIMIT','SETUP-PASSWORD','SETUP-USERS'].includes(error?.diagnostic))diagnostic=error.diagnostic;console.error('Errore operazione',diagnostic,'tipo',error?.name || 'Error');return json({error:`Servizio temporaneamente non disponibile (rif. ${diagnostic})`},500);}

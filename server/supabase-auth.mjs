@@ -1,22 +1,12 @@
-/** Adapter in preparazione: non collegato al sito né alle rotte pubbliche. */
-function projectUrl(value){
-  let url;try{url=new URL(value);}catch{throw new TypeError('Configurazione provider non valida');}
-  if(url.protocol!=='https:' || !/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname) || url.username || url.password || url.port || url.pathname!=='/' || url.search || url.hash)throw new TypeError('Configurazione provider non valida');
-  return url.origin;
-}
-
-/** Verifica la password presso il provider; i token non vengono salvati o registrati. */
-export async function verifyProviderPassword({url,publicKey,email,password,fetcher=fetch}){
-  const origin=projectUrl(url);
-  if(typeof publicKey!=='string' || !publicKey || typeof email!=='string' || email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof password!=='string' || !password || password.length>128)throw new TypeError('Dati non validi');
-  const response=await fetcher(`${origin}/auth/v1/token?grant_type=password`,{
-    method:'POST',headers:{'apikey':publicKey,'Content-Type':'application/json'},
-    body:JSON.stringify({email:email.trim().toLowerCase(),password}),
-    signal:AbortSignal.timeout(10000)
-  });
-  if(response.status===400 || response.status===401)return null;
-  if(!response.ok)throw new Error('Provider di accesso non disponibile');
-  const body=await response.json();
-  if(typeof body?.user?.id!=='string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.user.id))throw new Error('Risposta del provider non valida');
-  return {providerUserId:body.user.id};
-}
+/** Comunicazione server-to-server con Supabase Auth. Non registrare password o token. */
+function projectUrl(value){let url;try{url=new URL(value);}catch{throw new TypeError('Configurazione provider non valida');}if(url.protocol!=='https:' || !/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname) || url.username || url.password || url.port || url.pathname!=='/' || url.search || url.hash)throw new TypeError('Configurazione provider non valida');return url.origin;}
+const validId=id=>typeof id==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+const adminHeaders=key=>key.startsWith('sb_secret_')?{apikey:key}:{apikey:key,Authorization:`Bearer ${key}`};
+const validEmail=email=>typeof email==='string' && email.length<=254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+function config(options,keyName){const origin=projectUrl(options.url),key=options[keyName];if(typeof key!=='string' || !key)throw new TypeError('Configurazione provider non valida');return {origin,key,fetcher:options.fetcher || fetch};}
+async function signIn(options){const {origin,key,fetcher}=config(options,'publicKey');if(!validEmail(options.email) || typeof options.password!=='string' || !options.password || options.password.length>128)throw new TypeError('Dati non validi');const response=await fetcher(`${origin}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:key,'Content-Type':'application/json'},body:JSON.stringify({email:options.email.trim().toLowerCase(),password:options.password}),signal:AbortSignal.timeout(10000)});if(response.status===400 || response.status===401)return null;if(!response.ok)throw new Error('Provider di accesso non disponibile');const body=await response.json();if(!validId(body?.user?.id))throw new Error('Risposta del provider non valida');return body;}
+export async function verifyProviderPassword(options){const result=await signIn(options);return result?{providerUserId:result.user.id}:null;}
+/** Solo il CED autenticato può chiamare questa funzione attraverso una rotta protetta. */
+export async function createProviderUser(options){const {origin,key,fetcher}=config(options,'serviceKey');if(!validEmail(options.email) || typeof options.password!=='string' || options.password.length<12 || options.password.length>128)throw new TypeError('Dati non validi');const response=await fetcher(`${origin}/auth/v1/admin/users`,{method:'POST',headers:{...adminHeaders(key),'Content-Type':'application/json'},body:JSON.stringify({email:options.email.toLowerCase(),password:options.password,email_confirm:true}),signal:AbortSignal.timeout(10000)});if(!response.ok)throw new Error('Creazione account presso il provider non riuscita');const result=await response.json();if(!validId(result?.id))throw new Error('Risposta del provider non valida');return {providerUserId:result.id};}
+export async function deleteProviderUser(options,id){const {origin,key,fetcher}=config(options,'serviceKey');if(!validId(id))throw new TypeError('Identificativo non valido');const response=await fetcher(`${origin}/auth/v1/admin/users/${id}`,{method:'DELETE',headers:adminHeaders(key),signal:AbortSignal.timeout(10000)});if(!response.ok)throw new Error('Rimozione account presso il provider non riuscita');}
+export async function changeProviderPassword(options,expectedId,newPassword){if(typeof newPassword!=='string' || newPassword.length<12 || newPassword.length>128)throw new TypeError('Password non valida');const result=await signIn(options);if(!result || result.user.id!==expectedId || typeof result.access_token!=='string')return false;const {origin,key,fetcher}=config(options,'publicKey');const response=await fetcher(`${origin}/auth/v1/user`,{method:'PUT',headers:{apikey:key,Authorization:`Bearer ${result.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({password:newPassword}),signal:AbortSignal.timeout(10000)});if(!response.ok)throw new Error('Cambio password presso il provider non riuscito');return true;}

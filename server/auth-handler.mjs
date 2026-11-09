@@ -63,5 +63,5 @@ export async function handleAuth(request,db,options={}){
       const data=await body(request);return json({user:await createUser(db,user,data)},201);
     }
     return json({error:'Operazione non trovata'},404);
-  }catch(error){if(error instanceof SyntaxError || error instanceof TypeError)return json({error:'Dati non validi'},400);console.error('Errore operazione',diagnostic,'tipo',error?.name || 'Error');return json({error:`Servizio temporaneamente non disponibile (rif. ${diagnostic})`},500);}
+  }catch(error){if(error instanceof SyntaxError || error instanceof TypeError)return json({error:'Dati non validi'},400);if(['SETUP-PASSWORD','SETUP-USERS'].includes(error?.diagnostic))diagnostic=error.diagnostic;console.error('Errore operazione',diagnostic,'tipo',error?.name || 'Error');return json({error:`Servizio temporaneamente non disponibile (rif. ${diagnostic})`},500);}
 }

@@ -63,8 +63,11 @@ export async function changePassword(db, principal, currentPassword, newPassword
 /** Imposta il primo amministratore soltanto quando non esiste alcun utente. */
 export async function bootstrapAdmin(db, user){
   if(!user || !checkUsername(user.username) || typeof user.displayName!=='string' || !user.displayName.trim() || user.displayName.length>100 || !checkPassword(user.password))throw new TypeError('Dati account non validi');
-  const id=crypto.randomUUID(),salt=randomHex(16),hash=await derive(user.password,salt,ITERATIONS);
-  const result=await db.prepare(`INSERT INTO users(id,username,display_name,role,password_hash,password_salt,password_iterations,must_change_password)
-    SELECT ?,?,?, 'ced',?,?,?,0 WHERE NOT EXISTS (SELECT 1 FROM users)`).bind(id,user.username.toLowerCase(),user.displayName.trim(),hash,salt,ITERATIONS).run();
+  const id=crypto.randomUUID(),salt=randomHex(16);
+  let hash;
+  try{hash=await derive(user.password,salt,ITERATIONS);}catch(_){const error=new Error('Protezione password non disponibile');error.diagnostic='SETUP-PASSWORD';throw error;}
+  let result;
+  try{result=await db.prepare(`INSERT INTO users(id,username,display_name,role,password_hash,password_salt,password_iterations,must_change_password)
+    SELECT ?,?,?, 'ced',?,?,?,0 WHERE NOT EXISTS (SELECT 1 FROM users)`).bind(id,user.username.toLowerCase(),user.displayName.trim(),hash,salt,ITERATIONS).run();}catch(_){const error=new Error('Archivio utenti non disponibile');error.diagnostic='SETUP-USERS';throw error;}
   return result.meta.changes===1;
 }

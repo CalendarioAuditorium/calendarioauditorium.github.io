@@ -13,3 +13,5 @@ assert.equal((await handleEvents(post('https://outside.example'),db)).status,403
 assert.equal((await handleEvents(post('https://calendar.example'),db)).status,201);
 const response=await handleEvents(new Request(url,{headers:{Cookie:cookie}}),db);assert.equal((await response.json()).events.length,1);
 });
+
+test('API rifiuta operazioni sugli eventi dell’altro ente',async()=>{const db=database(),session=await createManagedSession(db,{id:'user'}),url='https://calendar.example/api/events',cookie=`__Host-auditorium=${session.token}`,headers={Cookie:cookie,Origin:'https://calendar.example','Content-Type':'application/json'};const event={title:'Evento',owner:'school',date:'2026-11-06',startMinute:540,endMinute:600};const send=(method,data,id='')=>handleEvents(new Request(url+id,{method,headers,body:JSON.stringify(data)}),db);const own=await (await send('POST',event)).json();assert.equal((await send('POST',{...event,owner:'town'})).status,403);assert.equal((await send('PUT',{...event,owner:'town'},'?id='+own.event.id)).status,403);assert.equal((await handleEvents(new Request(url+'?id='+own.event.id,{method:'DELETE',headers}),db)).status,200);});

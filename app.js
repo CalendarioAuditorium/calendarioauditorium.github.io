@@ -62,11 +62,11 @@
   function openEvent(date=keyFromDate(current), hour) {
     const form=$('#eventForm');form.reset();editingId=null;$('#eventEyebrow').textContent='NUOVO APPUNTAMENTO';$('#eventHeading').textContent='Organizza un evento.';form.elements.date.value=date;
     const owner=profile==='ced' ? (hour!==undefined&&hour>=14?'town':'school') : profile;
-    form.elements.owner.value=owner;form.elements.owner.disabled=false;
+    form.elements.owner.value=owner;form.elements.owner.disabled=profile!=='ced';
     const startHour=hour!==undefined?hour:(owner==='town'?14:9);form.elements.start.value=`${String(startHour).padStart(2,'0')}:00`;form.elements.end.value=startHour===23?'00:00':`${String(startHour+1).padStart(2,'0')}:00`;
     $('#formError').textContent='';updateOverlapWarning();$('#eventDialog').showModal();
   }
-  function showDetails(event){selectedId=event.id;$('#detailsOwner').textContent=ownerNames[event.owner];$('#detailsTitle').textContent=event.title;$('#detailsTime').textContent=`${format(dateFromKey(event.date),{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${event.start} – ${event.end}`;$('#detailsNotes').textContent=event.notes || 'Nessuna nota.';$('#deleteEvent').hidden=false;
+  function showDetails(event){selectedId=event.id;$('#detailsOwner').textContent=ownerNames[event.owner];$('#detailsTitle').textContent=event.title;$('#detailsTime').textContent=`${format(dateFromKey(event.date),{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${event.start} – ${event.end}`;$('#detailsNotes').textContent=event.notes || 'Nessuna nota.';$('#deleteEvent').hidden=event.owner!==profile;$('#editEvent').hidden=event.owner!==profile;
     const conflicts=events.filter(other=>other.id!==event.id && other.owner!==event.owner && other.date===event.date && minutes(event.start)<minutes(other.end,true) && minutes(event.end,true)>minutes(other.start));
     const contactArea=$('#conflictContact'), buttons=$('#contactButtons');buttons.replaceChildren();contactArea.hidden=conflicts.length===0;
     if(conflicts.length){const targets=profile==='ced'?['school','town']:[profile==='school'?'town':'school'];targets.forEach(owner=>{const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=`Chiama ${ownerNames[owner]}`;button.addEventListener('click',()=>showContact(owner));buttons.append(button);});}

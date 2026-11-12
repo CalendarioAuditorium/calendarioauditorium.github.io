@@ -1,5 +1,5 @@
 import {getManagedSession} from './managed-identity.mjs';
-import {listEvents,createEvent,updateEvent,deleteEvent} from './events.mjs';
+import {ForbiddenError,listEvents,createEvent,updateEvent,deleteEvent} from './events.mjs';
 
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
 function sessionCookie(request){const cookie=request.headers.get('Cookie') || '';const matches=cookie.split(';').map(s=>s.trim()).filter(s=>s.startsWith('__Host-auditorium='));return matches.length===1?matches[0].slice('__Host-auditorium='.length):'';}
@@ -27,6 +27,7 @@ export async function handleEvents(request, db){
     const id=url.searchParams.get('id');if(!id)return json({error:'Identificativo richiesto'},400);
     const updated=await updateEvent(db,principal,id,event);return updated?json({event:updated}):json({error:'Evento non trovato'},404);
   } catch(error){
+    if(error instanceof ForbiddenError)return json({error:'Operazione non autorizzata'},403);
     if(error instanceof TypeError)return json({error:'Dati non validi'},400);
     return json({error:'Servizio temporaneamente non disponibile'},500);
   }

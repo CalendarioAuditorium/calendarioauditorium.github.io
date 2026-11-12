@@ -1,6 +1,8 @@
 /** Operazioni sull'archivio D1. Il chiamante deve fornire un'identità verificata dal server. */
 const roles = new Set(['ced', 'school', 'town']);
 
+export class ForbiddenError extends Error {}
+
 function checkIdentity(identity) {
   if (!identity || typeof identity.id !== 'string' || !identity.id.trim() || !roles.has(identity.role)) {
     throw new Error('Identità verificata richiesta');
@@ -38,6 +40,7 @@ export async function listEvents(db, identity) {
 export async function createEvent(db, identity, data) {
   checkIdentity(identity);
   const event = validate(data), id = crypto.randomUUID();
+  if (event.owner !== identity.role) throw new ForbiddenError('Ente non autorizzato');
   await db.prepare(`INSERT INTO events
     (id,title,owner,event_date,start_minute,end_minute,notes,created_by)
     VALUES (?,?,?,?,?,?,?,?)`).bind(id,event.title,event.owner,event.date,event.startMinute,event.endMinute,event.notes,identity.id).run();
@@ -48,8 +51,9 @@ export async function updateEvent(db, identity, id, data) {
   checkIdentity(identity);
   if (typeof id !== 'string' || !id) throw new TypeError('Identificativo non valido');
   const event = validate(data);
+  if (event.owner !== identity.role) throw new ForbiddenError('Ente non autorizzato');
   const result = await db.prepare(`UPDATE events SET title=?,owner=?,event_date=?,start_minute=?,end_minute=?,notes=?,
-    updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?`).bind(event.title,event.owner,event.date,event.startMinute,event.endMinute,event.notes,id).run();
+    updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND owner=?`).bind(event.title,event.owner,event.date,event.startMinute,event.endMinute,event.notes,id,identity.role).run();
   if (!result.meta.changes) return null;
   return db.prepare(`SELECT ${columns} FROM events WHERE id=?`).bind(id).first();
 }
@@ -57,7 +61,7 @@ export async function updateEvent(db, identity, id, data) {
 export async function deleteEvent(db, identity, id) {
   checkIdentity(identity);
   if (typeof id !== 'string' || !id) throw new TypeError('Identificativo non valido');
-  const result = await db.prepare('DELETE FROM events WHERE id=?').bind(id).run();
+  const result = await db.prepare('DELETE FROM events WHERE id=? AND owner=?').bind(id,identity.role).run();
   return result.meta.changes > 0;
 }
 

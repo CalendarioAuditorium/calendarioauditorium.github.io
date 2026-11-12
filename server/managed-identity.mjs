@@ -8,10 +8,20 @@ const sessionTime=8*60*60;
 /** È necessario applicare limitazione dei tentativi prima di chiamare questa funzione. */
 export async function authenticateManaged(db,{username,password,provider}){
   if(typeof username!=='string' || !/^[a-z0-9._-]{3,64}$/i.test(username) || typeof password!=='string' || password.length>128)return null;
-  const record=await db.prepare('SELECT email FROM managed_accounts WHERE username=? AND disabled=0').bind(username.toLowerCase()).first();
+  const record=await db.prepare('SELECT id,email,provider_user_id FROM managed_accounts WHERE username=? AND disabled=0').bind(username.toLowerCase()).first();
   if(!record)return null;
   const verified=await verifyProviderPassword({...provider,email:record.email,password});
-  return verified ? resolveProviderIdentity(db,username,verified.providerUserId) : null;
+  if(!verified)return null;
+  // La password è stata verificata per l'email già autorizzata in D1. Se l'utente
+  // è stato ricreato nel provider, sostituiamo l'identificativo e revochiamo le
+  // precedenti sessioni prima di consentire il nuovo accesso.
+  if(record.provider_user_id!==verified.providerUserId){
+    await db.batch([
+      db.prepare('UPDATE managed_accounts SET provider_user_id=? WHERE id=? AND provider_user_id=? AND disabled=0').bind(verified.providerUserId,record.id,record.provider_user_id),
+      db.prepare('DELETE FROM managed_sessions WHERE user_id=?').bind(record.id)
+    ]);
+  }
+  return resolveProviderIdentity(db,username,verified.providerUserId);
 }
 export async function createManagedSession(db,user,now=Math.floor(Date.now()/1000)){
   if(!user || typeof user.id!=='string' || !user.id)throw new TypeError('Utente non valido');

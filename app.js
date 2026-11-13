@@ -1,6 +1,6 @@
 (async () => {
   const $ = selector => document.querySelector(selector);
-  const profiles = {ced:'CED', school:'Scuola Mazzolari', town:'Comune di Verolanuova'};
+  const profiles = {school:'Scuola Mazzolari', town:'Comune di Verolanuova'};
   const ownerNames = {school:'Scuola Mazzolari', town:'Comune di Verolanuova'};
   const phoneNumbers = {school: '+39 030 931 101', town: '+39 030 936 5010'};
   const romeToday = () => new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Rome', year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -9,7 +9,7 @@
   const addDays = (d,n) => { const result = new Date(d); result.setDate(result.getDate()+n); return result; };
   const monday = d => addDays(d,-((d.getDay()+6)%7));
   const format = (date,options) => new Intl.DateTimeFormat('it-IT',options).format(date);
-  let current = dateFromKey(romeToday()), view = 'month', profile = 'ced', selectedId = null, editingId = null;
+  let current = dateFromKey(romeToday()), view = 'month', profile = null, selectedId = null, editingId = null;
   let events = [];
   const visibleCalendars = new Set(['school', 'town']);
   async function api(path,options={}){const response=await fetch(`/api/${path}`,options);if(response.status===401){location.href='index.html';throw new Error('Sessione scaduta.');}let body;try{body=await response.json()}catch{throw new Error('Risposta del server non valida.')}if(!response.ok)throw new Error(body.error || 'Operazione non riuscita.');return body;}
@@ -61,15 +61,15 @@
   ['date','start','end'].forEach(name=>$('#eventForm').elements[name].addEventListener('input',updateOverlapWarning));
   function openEvent(date=keyFromDate(current), hour) {
     const form=$('#eventForm');form.reset();editingId=null;$('#eventEyebrow').textContent='NUOVO APPUNTAMENTO';$('#eventHeading').textContent='Organizza un evento.';form.elements.date.value=date;
-    const owner=profile==='ced' ? (hour!==undefined&&hour>=14?'town':'school') : profile;
-    form.elements.owner.value=owner;form.elements.owner.disabled=profile!=='ced';
+    const owner=profile;
+    form.elements.owner.value=owner;form.elements.owner.disabled=true;
     const startHour=hour!==undefined?hour:(owner==='town'?14:9);form.elements.start.value=`${String(startHour).padStart(2,'0')}:00`;form.elements.end.value=startHour===23?'00:00':`${String(startHour+1).padStart(2,'0')}:00`;
     $('#formError').textContent='';updateOverlapWarning();$('#eventDialog').showModal();
   }
   function showDetails(event){selectedId=event.id;$('#detailsOwner').textContent=ownerNames[event.owner];$('#detailsTitle').textContent=event.title;$('#detailsTime').textContent=`${format(dateFromKey(event.date),{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${event.start} – ${event.end}`;$('#detailsNotes').textContent=event.notes || 'Nessuna nota.';$('#deleteEvent').hidden=event.owner!==profile;$('#editEvent').hidden=event.owner!==profile;
     const conflicts=events.filter(other=>other.id!==event.id && other.owner!==event.owner && other.date===event.date && minutes(event.start)<minutes(other.end,true) && minutes(event.end,true)>minutes(other.start));
     const contactArea=$('#conflictContact'), buttons=$('#contactButtons');buttons.replaceChildren();contactArea.hidden=conflicts.length===0;
-    if(conflicts.length){const targets=profile==='ced'?['school','town']:[profile==='school'?'town':'school'];targets.forEach(owner=>{const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=`Chiama ${ownerNames[owner]}`;button.addEventListener('click',()=>showContact(owner));buttons.append(button);});}
+    if(conflicts.length){const targets=[profile==='school'?'town':'school'];targets.forEach(owner=>{const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=`Chiama ${ownerNames[owner]}`;button.addEventListener('click',()=>showContact(owner));buttons.append(button);});}
     $('#detailsDialog').showModal();}
   function showContact(owner){const phone=phoneNumbers[owner],link=$('#contactCall');$('#contactTitle').textContent=ownerNames[owner];$('#contactNumber').textContent=phone ? `Numero: ${phone}` : 'Numero di telefono non ancora configurato.';link.hidden=!phone;if(phone)link.href=`tel:${phone.replace(/[^+\d]/g,'')}`;else link.removeAttribute('href');$('#contactDialog').showModal();}
   $('#editEvent').addEventListener('click',()=>{const event=events.find(item=>item.id===selectedId);if(!event)return;$('#detailsDialog').close();openEvent(event.date);editingId=event.id;const form=$('#eventForm');form.elements.title.value=event.title;form.elements.owner.value=event.owner;form.elements.date.value=event.date;form.elements.start.value=event.start;form.elements.end.value=event.end;form.elements.notes.value=event.notes;$('#eventEyebrow').textContent='MODIFICA APPUNTAMENTO';$('#eventHeading').textContent='Modifica evento.';updateOverlapWarning();});
@@ -80,11 +80,8 @@
   $('#newEvent').addEventListener('click',()=>openEvent());$('#profileButton').addEventListener('click',()=>$('#profileDialog').showModal());
   document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.close).close()));
   function setProfile(value){profile=value;document.body.dataset.profile=profile;$('#profileName').textContent=profiles[profile];$('#accountName').textContent=profiles[profile];$('#avatar').textContent=profile==='school'?'S':'C';$('#avatar').className='avatar '+(profile==='school'?'school-avatar':profile==='town'?'town-avatar':'');}
-  let user;try{user=(await api('session')).user;if(user.mustChangePassword){location.href='index.html';return;}setProfile(user.role);$('#adminButton').hidden=user.role!=='ced';await loadEvents();}catch(e){if(e.message!=='Sessione scaduta.')alert(e.message || 'Impossibile caricare il calendario.');return;}
+  let user;try{user=(await api('session')).user;if(user.mustChangePassword){location.href='index.html';return;}if(!Object.hasOwn(profiles,user.role))throw new Error('Profilo non autorizzato.');setProfile(user.role);await loadEvents();}catch(e){if(e.message!=='Sessione scaduta.')alert(e.message || 'Impossibile caricare il calendario.');return;}
   $('#logoutButton').addEventListener('click',async()=>{try{await api('logout',request('POST',{}));location.replace('index.html');}catch(e){alert(e.message)}});
-  async function loadAccounts(){const list=$('#accountList');list.textContent='Caricamento…';const data=await api('users');list.replaceChildren();data.users.forEach(account=>{const row=document.createElement('p');row.textContent=`${account.displayName} · ${account.username} · ${profiles[account.role]}${account.disabled?' (disabilitato)':''}`;list.append(row);});}
-  $('#adminButton').addEventListener('click',async()=>{$('#profileDialog').close();$('#adminDialog').showModal();try{await loadAccounts()}catch(e){$('#accountError').textContent=e.message}});
-  $('#accountForm').addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('button');if(!form.reportValidity())return;button.disabled=true;$('#accountError').textContent='';try{await api('users',request('POST',Object.fromEntries(new FormData(form))));form.reset();await loadAccounts();$('#accountError').textContent='Account creato.';}catch(error){$('#accountError').textContent=error.message}finally{button.disabled=false}});
   document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{view=button.dataset.view;render();}));
   $('#today').addEventListener('click',()=>{current=dateFromKey(romeToday());render();});
   function move(direction){if(view==='month'){current=new Date(current.getFullYear(),current.getMonth()+direction,1,12);}else current=addDays(current,direction*(view==='week'?7:1));render();}

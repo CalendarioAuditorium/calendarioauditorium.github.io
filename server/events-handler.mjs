@@ -1,13 +1,13 @@
-import {getManagedSession} from './managed-identity.mjs';
+import {getManagedSession,getCurrentManagedSession} from './managed-identity.mjs';
 import {ForbiddenError,listEvents,createEvent,updateEvent,deleteEvent} from './events.mjs';
 
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}});
 function sessionCookie(request){const cookie=request.headers.get('Cookie') || '';const matches=cookie.split(';').map(s=>s.trim()).filter(s=>s.startsWith('__Host-auditorium='));return matches.length===1?matches[0].slice('__Host-auditorium='.length):'';}
 
 /** Non collegare a una rotta pubblica finché login, protezioni e migrazioni non sono pronti. */
-export async function handleEvents(request, db){
+export async function handleEvents(request, db, provider){
   try {
-    const principal=await getManagedSession(db,sessionCookie(request));
+    const principal=provider ? await getCurrentManagedSession(db,sessionCookie(request),provider) : await getManagedSession(db,sessionCookie(request));
     if(!principal)return json({error:'Accesso richiesto'},401);
     if(principal.mustChangePassword)return json({error:'Cambia prima la password temporanea'},403);
     const url=new URL(request.url),method=request.method;

@@ -7,8 +7,24 @@ const sessionTime=8*60*60;
 
 /** È necessario applicare limitazione dei tentativi prima di chiamare questa funzione. */
 export async function authenticateManaged(db,{username,password,provider}){
-  if(typeof username!=='string' || !/^[a-z0-9._-]{3,64}$/i.test(username) || typeof password!=='string' || password.length>128)return null;
-  const record=await db.prepare('SELECT id,email,provider_user_id FROM managed_accounts WHERE username=? AND disabled=0').bind(username.toLowerCase()).first();
+  if(typeof username!=='string' || typeof password!=='string' || password.length>128)return null;
+  username=username.trim().toLowerCase();
+  if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username) && username.length<=254){
+    const verified=await verifyProviderPassword({...provider,email:username,password});
+    if(!verified || verified.email!==username || !['school','town'].includes(verified.calendarRole))return null;
+    const existing=await db.prepare('SELECT id,provider_user_id,role FROM managed_accounts WHERE email=?').bind(username).first();
+    if(existing && (existing.provider_user_id!==verified.providerUserId || existing.role!==verified.calendarRole)){
+      await db.prepare('DELETE FROM managed_sessions WHERE user_id=?').bind(existing.id).run();
+    }
+    await db.prepare(`INSERT INTO managed_accounts(id,username,display_name,role,email,provider_user_id,must_change_password)
+      VALUES (?,?,?,?,?,?,0) ON CONFLICT(email) DO UPDATE SET provider_user_id=excluded.provider_user_id,
+      role=excluded.role,disabled=0,must_change_password=0`).bind(crypto.randomUUID(),verified.providerUserId,
+      verified.calendarRole==='school'?'Scuola Mazzolari':'Comune di Verolanuova',verified.calendarRole,username,verified.providerUserId).run();
+    const user=await db.prepare('SELECT id,username,display_name,role,must_change_password FROM managed_accounts WHERE email=? AND provider_user_id=? AND disabled=0').bind(username,verified.providerUserId).first();
+    return user?{id:user.id,username:user.username,displayName:user.display_name,role:user.role,mustChangePassword:!!user.must_change_password}:null;
+  }
+  if(!/^[a-z0-9._-]{3,64}$/i.test(username))return null;
+  const record=await db.prepare("SELECT id,email,provider_user_id FROM managed_accounts WHERE username=? AND disabled=0 AND role IN ('school','town')").bind(username.toLowerCase()).first();
   if(!record)return null;
   const verified=await verifyProviderPassword({...provider,email:record.email,password});
   if(!verified)return null;
@@ -32,8 +48,19 @@ export async function createManagedSession(db,user,now=Math.floor(Date.now()/100
 export async function getManagedSession(db,token,now=Math.floor(Date.now()/1000)){
   if(typeof token!=='string' || !/^[a-f0-9]{64}$/.test(token))return null;
   const user=await db.prepare(`SELECT u.id,u.username,u.display_name,u.role,u.must_change_password FROM managed_sessions s
-    JOIN managed_accounts u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0`).bind(await hash(token),now).first();
+    JOIN managed_accounts u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0 AND u.role IN ('school','town')`).bind(await hash(token),now).first();
   return user?{id:user.id,username:user.username,displayName:user.display_name,role:user.role,mustChangePassword:!!user.must_change_password}:null;
+}
+export async function getCurrentManagedSession(db,token,provider){
+  const user=await getManagedSession(db,token);if(!user)return null;
+  const record=await db.prepare('SELECT email,provider_user_id FROM managed_accounts WHERE id=? AND disabled=0').bind(user.id).first();
+  if(!record)return null;
+  const {getProviderUser}=await import('./supabase-auth.mjs');
+  const actual=await getProviderUser(provider,record.provider_user_id);
+  if(!actual || !actual.email_confirmed_at || actual.email?.toLowerCase()!==record.email.toLowerCase() || actual.app_metadata?.calendar_role!==user.role || actual.banned_until && Date.parse(actual.banned_until)>Date.now()){
+    await revokeManagedSession(db,token);return null;
+  }
+  return user;
 }
 export async function revokeManagedSession(db,token){if(typeof token==='string' && /^[a-f0-9]{64}$/.test(token))await db.prepare('DELETE FROM managed_sessions WHERE token_hash=?').bind(await hash(token)).run();}
 

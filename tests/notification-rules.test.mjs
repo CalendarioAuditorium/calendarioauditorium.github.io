@@ -6,7 +6,7 @@ const plan=(changes={}, actor='school', existingEvents=[]) => planNotifications(
 test('evento nella propria fascia informa la controparte',()=>{assert.deepEqual(plan().recipients,['town']);assert.deepEqual(plan({},'school').reasons,['new_event']);});
 test('contigui non si sovrappongono',()=>{assert.deepEqual(plan({},'school',[{id:'a',date:event.date,startMinute:600,endMinute:660}]).reasons,['new_event']);});
 test('sovrapposizioni informano entrambi senza doppioni',()=>{const result=plan({startMinute:830,endMinute:900},'school',[{id:'a',date:event.date,startMinute:840,endMinute:960}]);assert.deepEqual(result.recipients,['school','town']);assert.deepEqual(result.reasons,['overlap','other_slot']);assert.deepEqual(result.conflictIds,['a']);});
-test('fascia altrui senza sovrapposizioni informa entrambi',()=>{assert.deepEqual(plan({startMinute:500,endMinute:600},'town').reasons,['other_slot']);assert.deepEqual(plan({startMinute:500,endMinute:600},'town').recipients,['school','town']);});
+test('fascia altrui senza sovrapposizioni informa entrambi',()=>{assert.deepEqual(plan({owner:'town',startMinute:500,endMinute:600},'town').reasons,['other_slot']);assert.deepEqual(plan({owner:'town',startMinute:500,endMinute:600},'town').recipients,['school','town']);});
 test('altre date e modifica dello stesso evento non sono conflitti',()=>{assert.deepEqual(plan({},'school',[{id:'a',date:'2026-11-07',startMinute:540,endMinute:600},{...event}]).reasons,['new_event']);});
-test('CED informa entrambi senza attribuire una fascia propria',()=>{assert.deepEqual(plan({},'ced').recipients,['school','town']);assert.deepEqual(plan({},'ced').reasons,['new_event']);});
+test('rifiuta attori senza ruolo o diversi dal proprietario',()=>{assert.throws(()=>plan({},'ced'));assert.throws(()=>plan({},'town'));});
 test('orari fuori intervallo vengono rifiutati',()=>{assert.throws(()=>plan({startMinute:1400,endMinute:60}));});

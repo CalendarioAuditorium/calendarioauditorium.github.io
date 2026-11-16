@@ -1,0 +1,32 @@
+name: Coda Gmail - prova
+on:
+  push:
+    branches: [calendario-condiviso-test]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gmail-queue-test
+  cancel-in-progress: false
+jobs:
+  queue:
+    if: github.ref == 'refs/heads/calendario-condiviso-test'
+    environment: gmail-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Elabora soltanto eventi fittizi
+        env:
+          NOTIFICATION_TEST_MODE: ${{ vars.NOTIFICATION_TEST_MODE }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          TEST_RECIPIENT_SCHOOL: ${{ secrets.TEST_RECIPIENT_SCHOOL }}
+          TEST_RECIPIENT_TOWN: ${{ secrets.TEST_RECIPIENT_TOWN }}
+        run: node .github/scripts/process-gmail-queue.mjs

@@ -24,4 +24,4 @@ Eseguire i test dalla radice del progetto con una versione di Node.js che includ
 node --test tests/*.test.mjs
 ```
 
-Le pagine statiche si possono servire con `python3 -m http.server 8000`, ma per autenticazione e calendario condiviso occorrono anche le Pages Functions e i servizi configurati. Le notifiche automatiche via email **non sono ancora attive**: la logica di pianificazione in `lib/notification-rules.mjs` non invia messaggi.
+Le pagine statiche si possono servire con `python3 -m http.server 8000`, ma per autenticazione e calendario condiviso occorrono anche le Pages Functions e i servizi configurati. Le notifiche automatiche via email **non sono ancora attive**: la prova Gmail richiede migrazione del solo database di test, configurazione e verifica della ricezione. Vedere [la guida di prova](docs/notifiche-gmail-test.md).

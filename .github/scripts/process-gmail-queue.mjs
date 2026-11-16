@@ -22,7 +22,8 @@ async function getAccessToken() {
   const data=await response.json();if(!data.access_token) throw new Error('Risposta di autorizzazione incompleta');return data.access_token;
 }
 try {
-  const result=await processQueue({query,getAccessToken,send:sendGmail,recipients:{school:env.TEST_RECIPIENT_SCHOOL,town:env.TEST_RECIPIENT_TOWN}});
+  const testEventIds=(env.TEST_EVENT_IDS || '').split(',').map(id=>id.trim()).filter(Boolean);
+  const result=await processQueue({query,getAccessToken,send:sendGmail,testEventIds,recipients:{school:env.TEST_RECIPIENT_SCHOOL,town:env.TEST_RECIPIENT_TOWN}});
   console.log(`Gmail: accettati ${result.accepted}, da ritentare ${result.retry}, rifiutati ${result.failed}, incerti ${result.unknown}. Verificare le caselle.`);
   if(result.failed || result.unknown) process.exitCode=1;
 } catch {console.error('Elaborazione non riuscita. Controllare configurazione e stato della coda; nessuna credenziale è stata registrata.');process.exitCode=1;}

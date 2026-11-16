@@ -1,14 +1,15 @@
 import {randomUUID} from 'node:crypto';
 
-// La modalità di prova non trasmette mai titoli o note di eventi reali.
+// La prova elabora soltanto dati fittizi marcati o eventi selezionati esplicitamente.
 export const TEST_TITLE = '[TEST] Evento fittizio';
 export const TEST_DATE = '2098-01-01';
 const MAX_ATTEMPTS = 5;
 const leaseSeconds = 120;
 
-export async function processQueue({query, getAccessToken, send, recipients, now = () => Math.floor(Date.now()/1000), limit = 20}) {
+export async function processQueue({query, getAccessToken, send, recipients, testEventIds = [], now = () => Math.floor(Date.now()/1000), limit = 20}) {
   if (!recipients || !['school','town'].every(k => /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(recipients[k] || '')) ||
       recipients.school.toLowerCase() === recipients.town.toLowerCase()) throw new Error('Servono due indirizzi di prova distinti e controllati');
+  if (!Array.isArray(testEventIds) || testEventIds.length>20 || !testEventIds.every(id=>typeof id==='string' && /^[a-zA-Z0-9-]{1,100}$/.test(id))) throw new Error('Identificativi di prova non validi');
   // Solo le prenotazioni non ancora in fase di invio possono essere riprese.
   await query("UPDATE notification_queue SET status='pending',claim_token=NULL,lease_until=NULL WHERE status='claimed' AND lease_until<?", [now()]);
   const interrupted=await query("UPDATE notification_queue SET status='unknown',last_error='invio interrotto o risposta non registrata',claim_token=NULL,lease_until=NULL WHERE status='sending' AND lease_until<? RETURNING id", [now()]);
@@ -16,9 +17,10 @@ export async function processQueue({query, getAccessToken, send, recipients, now
   const summary = {accepted:0, retry:0, failed:0, unknown:interrupted.length};
   for (let i=0;i<limit;i++) {
     const claim = randomUUID(), time = now();
+    const explicitlySelected=testEventIds.length ? ` OR event_id IN (${testEventIds.map(()=>'?').join(',')})` : '';
     const rows = await query(`UPDATE notification_queue SET status='claimed',claim_token=?,lease_until=?,attempts=attempts+1
-      WHERE id=(SELECT id FROM notification_queue WHERE status='pending' AND available_at<=? AND title=? AND event_date=? ORDER BY id LIMIT 1)
-      AND status='pending' RETURNING *`, [claim,time+leaseSeconds,time,TEST_TITLE,TEST_DATE]);
+      WHERE id=(SELECT id FROM notification_queue WHERE status='pending' AND available_at<=? AND ((title=? AND event_date=?)${explicitlySelected}) ORDER BY id LIMIT 1)
+      AND status='pending' RETURNING *`, [claim,time+leaseSeconds,time,TEST_TITLE,TEST_DATE,...testEventIds]);
     const item=rows[0]; if (!item) break;
     const transition=await query("UPDATE notification_queue SET status='sending',lease_until=? WHERE id=? AND status='claimed' AND claim_token=? RETURNING id", [now()+leaseSeconds,item.id,claim]);
     if (!transition.length) continue;
@@ -41,7 +43,7 @@ const clock=n=>n===1440?'24:00':`${String(Math.floor(n/60)).padStart(2,'0')}:${S
 export function makeMessage(to,item) {
   const names={school:'Scuola Mazzolari',town:'Comune di Verolanuova'};
   const lines=['MESSAGGIO DI PROVA: dati fittizi.',`${names[item.owner]} ha inserito un evento nel calendario Auditorium.`,
-    `Evento: ${TEST_TITLE}`,`Data: ${item.event_date}`,`Orario: ${clock(item.start_minute)}–${clock(item.end_minute)}`];
+    `Evento: ${item.title || TEST_TITLE}`,`Data: ${item.event_date}`,`Orario: ${clock(item.start_minute)}–${clock(item.end_minute)}`];
   if(item.overlap) lines.push('Attenzione: questo evento si sovrappone a un altro evento.');
   if(item.other_slot) lines.push(`L’evento interessa la fascia indicativa di ${names[item.owner==='school'?'town':'school']}.`);
   if(!item.overlap && !item.other_slot) lines.push('Questa è una comunicazione informativa.');

@@ -50,6 +50,18 @@ test('elaboratori concorrenti non inviano due volte e ignorano titoli reali',asy
  assert.equal(db.prepare("SELECT status FROM notification_queue WHERE event_id='real'").get().status,'pending');
  assert.equal(db.prepare("SELECT status FROM notification_queue WHERE event_id='date'").get().status,'pending');
 });
+test('solo gli eventi esplicitamente autorizzati possono usare altri titoli e date',async()=>{
+ const {db,event,query}=database();event('selected','school',540,600,'2026-11-16','Spettacolo di prova');event('other','town',840,900,'2026-11-16','Altri dati');
+ const seen=[];const o=options(query,async message=>{seen.push(message.item);return {kind:'accepted',id:'ok'}});o.testEventIds=['selected'];
+ await processQueue(o);assert.equal(seen.length,1);assert.equal(seen[0].title,'Spettacolo di prova');
+ assert.equal(db.prepare("SELECT status FROM notification_queue WHERE event_id='other'").get().status,'pending');
+ const raw=Buffer.from(makeMessage('test@example.com',seen[0]),'base64url').toString();
+ assert.match(Buffer.from(raw.split('\r\n\r\n')[1],'base64').toString(),/Spettacolo di prova/);
+});
+test('rifiuta elenchi di identificativi non validi prima di accedere al database',async()=>{
+ const {query}=database();const o=options(query,async()=>{});o.testEventIds=["x') OR 1=1 --"];
+ await assert.rejects(processQueue(o));
+});
 test('429 viene ritentato con ritardo; invio incerto non viene ritentato',async()=>{
  const {db,event,query}=database();event('a');let now=2000000000,calls=0;
  const send=async()=>{calls++;return calls===1?{kind:'retry'}:{kind:'unknown'}};

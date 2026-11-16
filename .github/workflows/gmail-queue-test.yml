@@ -2,6 +2,8 @@ name: Coda Gmail - prova
 on:
   push:
     branches: [calendario-condiviso-test]
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +24,7 @@ jobs:
       - name: Elabora soltanto eventi fittizi
         env:
           NOTIFICATION_TEST_MODE: ${{ vars.NOTIFICATION_TEST_MODE }}
+          TEST_EVENT_IDS: ${{ vars.TEST_EVENT_IDS }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}

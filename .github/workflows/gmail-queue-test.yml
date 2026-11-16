@@ -24,7 +24,7 @@ jobs:
       - name: Elabora soltanto eventi fittizi
         env:
           NOTIFICATION_TEST_MODE: ${{ vars.NOTIFICATION_TEST_MODE }}
-          TEST_EVENT_IDS: ${{ vars.TEST_EVENT_IDS }}
+          TEST_EVENT_IDS: ${{ vars.TEST_EVENT_IDS || secrets.TEST_EVENT_IDS }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}

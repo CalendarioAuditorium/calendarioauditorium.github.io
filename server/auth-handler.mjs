@@ -23,6 +23,8 @@ async function body(request){
 /** Logica in preparazione: non pubblicare senza configurazione, verifica Cloudflare e revisione. */
 export async function handleAuth(request,db,options={}){
   let diagnostic='AUTH';
+  const policy=options.provider?.accessPolicy;
+  if(policy!==undefined && (!['test','production'].includes(policy?.mode) || policy.mode==='production' && !options.provider?.serviceKey))return json({error:'Servizio non configurato'},503);
   const session=token=>options.provider?.serviceKey ? getCurrentManagedSession(db,token,options.provider) : getManagedSession(db,token);
   try{
     const url=new URL(request.url),method=request.method,action=url.pathname.split('/').pop();

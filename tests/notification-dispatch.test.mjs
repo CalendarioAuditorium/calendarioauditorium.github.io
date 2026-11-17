@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {dispatchTestQueue,shouldDispatchTestQueue} from '../server/notification-dispatch.mjs';
+import {dispatchTestQueue,shouldDispatchTestQueue,dispatchProductionQueue,shouldDispatchProductionQueue} from '../server/notification-dispatch.mjs';
 
 test('avvia solo dopo una creazione riuscita nell’anteprima, con segreto configurato',()=>{
   const url='https://b24ea501.calendarioauditorium-github-io.pages.dev/api/events';
@@ -16,6 +16,29 @@ test('richiede a GitHub di eseguire il ramo di test senza dati dell’evento',as
   let call;const result=await dispatchTestQueue('dummy-token',async(url,options)=>{call={url,options};return new Response(null,{status:204})});
   assert.equal(result,true);assert.match(call.url,/\/gmail-queue-test.yml\/dispatches$/);
   assert.deepEqual(JSON.parse(call.options.body),{ref:'calendario-condiviso-test'});
+});
+
+test('produzione richiede impostazioni server esplicite e un host ufficiale esatto',()=>{
+  const response=new Response('',{status:201});
+  const req=(url,method='POST')=>new Request(url,{method});
+  const official='https://calendarioauditorium-github-io.pages.dev/api/events';
+  const preview='https://calendario-condiviso-test.calendarioauditorium-github-io.pages.dev/api/events';
+  const env={NOTIFICATION_ENVIRONMENT:'production',NOTIFICATION_PRODUCTION_HOSTS:'calendarioauditorium-github-io.pages.dev',GITHUB_PRODUCTION_DISPATCH_TOKEN:'secret'};
+  assert.equal(shouldDispatchProductionQueue(req(official),response,env),true);
+  assert.equal(shouldDispatchProductionQueue(req(official),response,{...env,NOTIFICATION_ENVIRONMENT:''}),false);
+  assert.equal(shouldDispatchProductionQueue(req(official),response,{...env,GITHUB_PRODUCTION_DISPATCH_TOKEN:''}),false);
+  assert.equal(shouldDispatchProductionQueue(req(official),response,{...env,NOTIFICATION_PRODUCTION_HOSTS:'*.pages.dev'}),false);
+  assert.equal(shouldDispatchProductionQueue(req(official),response,{...env,NOTIFICATION_PRODUCTION_HOSTS:''}),false);
+  assert.equal(shouldDispatchProductionQueue(req(preview),response,{...env,NOTIFICATION_PRODUCTION_HOSTS:'calendario-condiviso-test.calendarioauditorium-github-io.pages.dev'}),false);
+  assert.equal(shouldDispatchProductionQueue(req('https://evil.example/api/events'),response,env),false);
+  assert.equal(shouldDispatchProductionQueue(req(official,'PUT'),response,env),false);
+  assert.equal(shouldDispatchProductionQueue(req(official),new Response('',{status:403}),env),false);
+});
+
+test('produzione invia solo il riferimento al workflow di produzione',async()=>{
+  let call;const result=await dispatchProductionQueue('dummy-token',async(url,options)=>{call={url,options};return new Response(null,{status:204})});
+  assert.equal(result,true);assert.match(call.url,/\/gmail-queue-production.yml\/dispatches$/);
+  assert.deepEqual(JSON.parse(call.options.body),{ref:'main'});
 });
 
 test('un errore di GitHub non viene scambiato per successo',async()=>{

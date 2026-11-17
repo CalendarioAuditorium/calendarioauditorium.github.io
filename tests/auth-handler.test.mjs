@@ -1,4 +1,4 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';import {handleAuth} from '../server/auth-handler.mjs';import {createManagedSession} from '../server/managed-identity.mjs';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';import {handleAuth} from '../server/auth-handler.mjs';import {createManagedSession,createCalendarAccessPolicy} from '../server/managed-identity.mjs';
 function database(){const sqlite=new DatabaseSync(':memory:');for(const f of ['0003_login_limits.sql','0004_managed_identity.sql'])sqlite.exec(readFileSync(`migrations/${f}`,'utf8'));return {async batch(statements){sqlite.exec('BEGIN');try{for(const s of statements)await s.run();sqlite.exec('COMMIT')}catch(e){sqlite.exec('ROLLBACK');throw e}},prepare(sql){let v=[];return {bind(...args){v=args;return this},async run(){const r=sqlite.prepare(sql).run(...v);return {meta:{changes:Number(r.changes)}}},async all(){return {results:sqlite.prepare(sql).all(...v)}},async first(){return sqlite.prepare(sql).get(...v)||null}}}};}
 const origin='https://calendar.example',secret='0123456789abcdef0123456789abcdef';
 function post(action,data,cookie='',extra={}){return new Request(`${origin}/api/${action}`,{method:'POST',headers:{Origin:origin,'CF-Connecting-IP':'203.0.113.10','Content-Type':'application/json',Cookie:cookie,...extra},body:JSON.stringify(data)});}
@@ -21,3 +21,12 @@ assert.equal(r.status,200);assert.equal((await r.json()).user.role,'school');
 assert.equal((await handleAuth(new Request(`${origin}/api/session`,{headers:{Cookie:c(r)}}),db,options)).status,200);
 });
 test('blocca origini estranee e limita tentativi',async()=>{const db=database(),options={provider:provider()};assert.equal((await handleAuth(post('login',{username:'x',password:'x'},'',{Origin:'https://outside.example'}),db,options)).status,403);for(let i=0;i<10;i++)assert.equal((await handleAuth(post('login',{username:'nessuno',password:'errata'}),db,options)).status,401);assert.equal((await handleAuth(post('login',{username:'nessuno',password:'errata'}),db,options)).status,429);});
+
+test('accesso di produzione non disponibile se policy o chiave server mancano',async()=>{
+ const db=database(),p=provider();
+ p.accessPolicy=createCalendarAccessPolicy({environment:'production',schoolEmail:'school@example.com'});
+ assert.equal((await handleAuth(post('login',{username:'school@example.com',password:'fake'}),db,{provider:p})).status,503);
+ p.accessPolicy=createCalendarAccessPolicy({environment:'production',schoolEmail:'school@example.com',townEmail:'town@example.com'});
+ delete p.serviceKey;
+ assert.equal((await handleAuth(new Request(`${origin}/api/session`),db,{provider:p})).status,503);
+});

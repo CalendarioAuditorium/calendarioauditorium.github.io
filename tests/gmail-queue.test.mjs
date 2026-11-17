@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {processQueue,sendGmail,makeMessage,TEST_TITLE} from '../server/gmail-queue.mjs';
 import {planNotifications} from '../lib/notification-rules.mjs';
+import {validateProductionConfig,runProduction} from '../.github/scripts/process-gmail-queue-production.mjs';
 
 function database(){
  const db=new DatabaseSync(':memory:');
@@ -102,4 +103,53 @@ test('Gmail: solo risposta valida è accettata; errori di rete e 5xx rimangono i
  assert.equal((await sendGmail(request,async()=>{throw Error('timeout')})).kind,'unknown');
  const mime=Buffer.from(makeMessage('test@example.com',item),'base64url').toString();
  const body=Buffer.from(mime.split('\r\n\r\n')[1],'base64').toString();assert.match(body,/sovrappone/);assert.match(body,/fascia indicativa/);
+});
+
+const productionConfig=()=>({PROD_NOTIFICATIONS_ENABLED:'enabled',PROD_D1_DATABASE_ID:'8f0f179d-d655-4f1a-8c63-f9db60d43b72',
+ PROD_NOTIFICATION_START_UNIX:'1800000000',PROD_CLOUDFLARE_ACCOUNT_ID:'a'.repeat(32),PROD_CLOUDFLARE_API_TOKEN:'cf-token',
+ PROD_GMAIL_CLIENT_ID:'id',PROD_GMAIL_CLIENT_SECRET:'secret',PROD_GMAIL_REFRESH_TOKEN:'refresh',
+ PROD_RECIPIENT_SCHOOL:'scuola@example.com',PROD_RECIPIENT_TOWN:'comune@example.com'});
+test('produzione non usa i valori di prova e non accetta configurazioni parziali o database di test',()=>{
+ const env=productionConfig();
+ assert.equal(validateProductionConfig(env,1800000001).database,env.PROD_D1_DATABASE_ID);
+ assert.throws(()=>validateProductionConfig({...env,PROD_NOTIFICATIONS_ENABLED:''},1800000001));
+ assert.throws(()=>validateProductionConfig({...env,PROD_D1_DATABASE_ID:'b2c275e3-70c6-4991-99e7-7032eb2c4577'},1800000001));
+ assert.throws(()=>validateProductionConfig({...env,PROD_NOTIFICATION_START_UNIX:''},1800000001));
+ assert.throws(()=>validateProductionConfig({...env,PROD_NOTIFICATION_START_UNIX:'1800000002'},1800000001));
+ assert.throws(()=>validateProductionConfig({...env,PROD_RECIPIENT_TOWN:env.PROD_RECIPIENT_SCHOOL},1800000001));
+});
+test('produzione e prova hanno contenuti distinguibili senza cambiare le regole',async()=>{
+ const item={owner:'school',title:'Evento',event_date:'2027-01-01',start_minute:830,end_minute:900,overlap:1,other_slot:1};
+ const decode=mode=>{const mime=Buffer.from(makeMessage('test@example.com',item,{mode}),'base64url').toString();
+  return {subject:Buffer.from(mime.match(/Subject: =\?UTF-8\?B\?([^?]+)/)[1],'base64').toString(),body:Buffer.from(mime.split('\r\n\r\n')[1],'base64').toString()}};
+ const testMessage=decode('test'),prodMessage=decode('production');
+ assert.match(testMessage.subject,/\[TEST\]/);assert.match(testMessage.body,/MESSAGGIO DI PROVA/);
+ assert.doesNotMatch(prodMessage.subject,/\[TEST\]/);assert.doesNotMatch(prodMessage.body,/MESSAGGIO DI PROVA/);
+ assert.match(prodMessage.body,/sovrappone/);assert.match(prodMessage.body,/fascia indicativa/);
+ assert.throws(()=>decode('invalid'));
+});
+test('la coda di produzione usa solo il database configurato e si ferma prima della rete se non abilitata',async()=>{
+ const env=productionConfig(),calls=[];env.PROD_NOTIFICATION_START_UNIX='1';
+ const mock=async(url)=>{calls.push(url);if(url==='https://oauth2.googleapis.com/token')return Response.json({access_token:'temporary'});
+  if(String(url).includes('/d1/database/'))return Response.json({success:true,result:[{success:true,results:[]}]});
+  throw Error('URL inatteso')};
+ const result=await runProduction(env,mock);assert.equal(result.accepted,0);
+ assert.ok(calls.some(url=>String(url).includes(env.PROD_D1_DATABASE_ID)));
+ assert.ok(calls.every(url=>!String(url).includes('b2c275e3-70c6-4991-99e7-7032eb2c4577')));
+ calls.length=0;await assert.rejects(runProduction({...env,PROD_NOTIFICATIONS_ENABLED:''},mock));assert.equal(calls.length,0);
+});
+test('un evento di produzione nella fascia altrui produce due email con contenuti di produzione',async()=>{
+ const {db,event}=database();event('evento','school',830,900,'2027-01-01','Prova fittizia');
+ const env=productionConfig();env.PROD_NOTIFICATION_START_UNIX='1';const messages=[];
+ const mock=async(url,options)=>{
+  if(url==='https://oauth2.googleapis.com/token')return Response.json({access_token:'temporary'});
+  if(String(url).includes('/d1/database/')){const {sql,params}=JSON.parse(options.body);return Response.json({success:true,result:[{success:true,results:db.prepare(sql).all(...params)}]});}
+  if(url==='https://gmail.googleapis.com/gmail/v1/users/me/messages/send'){
+   const mime=Buffer.from(JSON.parse(options.body).raw,'base64url').toString();messages.push(mime);return Response.json({id:'accepted-'+messages.length});
+  }
+  throw Error('URL inatteso');
+ };
+ const result=await runProduction(env,mock);assert.equal(result.accepted,2);assert.equal(messages.length,2);
+ assert.deepEqual(messages.map(m=>m.match(/^To: (.+)$/m)[1].trim()).sort(),[env.PROD_RECIPIENT_SCHOOL,env.PROD_RECIPIENT_TOWN].sort());
+ for(const mime of messages){const subject=Buffer.from(mime.match(/Subject: =\?UTF-8\?B\?([^?]+)/)[1],'base64').toString();assert.doesNotMatch(subject,/\[TEST\]/);}
 });

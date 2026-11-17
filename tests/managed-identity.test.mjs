@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';
-import {authenticateManaged,createManagedSession,getManagedSession,getCurrentManagedSession,revokeManagedSession,createManagedUser,changeManagedPassword} from '../server/managed-identity.mjs';
+import {authenticateManaged,createManagedSession,getManagedSession,getCurrentManagedSession,revokeManagedSession,createManagedUser,changeManagedPassword,createCalendarAccessPolicy} from '../server/managed-identity.mjs';
 function database(){const sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync('migrations/0004_managed_identity.sql','utf8'));sqlite.prepare('INSERT INTO managed_accounts(id,username,display_name,role,email,provider_user_id,must_change_password) VALUES (?,?,?,?,?,?,?)').run('u','anna','Anna','school','anna@example.com','12345678-1234-1234-1234-123456789abc',0);return {sqlite,async batch(statements){sqlite.exec('BEGIN');try{for(const s of statements)await s.run();sqlite.exec('COMMIT')}catch(e){sqlite.exec('ROLLBACK');throw e}},prepare(sql){let params=[];return {bind(...args){params=args;return this},async run(){sqlite.prepare(sql).run(...params)},async first(){return sqlite.prepare(sql).get(...params)||null}}}};}
 test('il provider verifica la password e la sessione usa un token separato e revocabile',async()=>{const db=database(),provider={url:'https://testproject.supabase.co',publicKey:'public-test-key',fetcher:async()=>new Response(JSON.stringify({user:{id:'12345678-1234-1234-1234-123456789abc'},access_token:'token-provider'}),{status:200})};const user=await authenticateManaged(db,{username:'ANNA',password:'test-password',provider});assert.equal(user.role,'school');const session=await createManagedSession(db,user,100);assert.equal((await getManagedSession(db,session.token,101)).id,'u');assert.equal(await getManagedSession(db,session.token,session.expiresAt),null);const stored=db.sqlite.prepare('SELECT token_hash FROM managed_sessions').get().token_hash;assert.notEqual(stored,session.token);await revokeManagedSession(db,session.token);assert.equal(await getManagedSession(db,session.token,101),null)});
 test('ricollega un account ricreato alla stessa email verificata e revoca le vecchie sessioni',async()=>{const db=database(),previous=await createManagedSession(db,{id:'u'}),provider={url:'https://testproject.supabase.co',publicKey:'public-test-key',fetcher:async(url,options)=>{assert.equal(JSON.parse(options.body).email,'anna@example.com');return new Response(JSON.stringify({user:{id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'}}),{status:200})}};assert.equal((await authenticateManaged(db,{username:'anna',password:'test-password',provider})).role,'school');assert.equal(db.sqlite.prepare('SELECT provider_user_id FROM managed_accounts WHERE id=?').get('u').provider_user_id,'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');assert.equal(await getManagedSession(db,previous.token),null);db.sqlite.prepare('UPDATE managed_accounts SET disabled=1').run();assert.equal(await authenticateManaged(db,{username:'anna',password:'test-password',provider}),null)});
@@ -28,4 +28,44 @@ test('una sessione perde accesso se l’account Supabase viene eliminato o cambi
  let session=await createManagedSession(db,account);assert.equal((await getCurrentManagedSession(db,session.token,provider)).role,'town');
  role='school';assert.equal(await getCurrentManagedSession(db,session.token,provider),null);assert.equal(await getManagedSession(db,session.token),null);
  role='town';session=await createManagedSession(db,account);present=false;assert.equal(await getCurrentManagedSession(db,session.token,provider),null);
+});
+
+test('la configurazione di produzione non autorizza account in caso di dati mancanti o duplicati',()=>{
+ const config=(environment,schoolEmail,townEmail)=>createCalendarAccessPolicy({environment,schoolEmail,townEmail});
+ assert.equal(config().mode,'blocked');
+ assert.equal(config('production','school@example.com','').mode,'blocked');
+ assert.equal(config('production','school@example.com','SCHOOL@example.com').mode,'blocked');
+ assert.equal(config('production','scuola','town@example.com').mode,'blocked');
+ assert.equal(config('test').mode,'test');
+ assert.deepEqual(config('production',' SCHOOL@example.com ','town@example.com'),{mode:'production',school:'school@example.com',town:'town@example.com'});
+});
+
+test('in produzione accedono solo le due email configurate con il ruolo corrispondente',async()=>{
+ const db=database();const users={
+  'anna@example.com':{id:'12345678-1234-1234-1234-123456789abc',role:'school'},
+  'comune@example.com':{id:'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',role:'town'},
+  'altro@example.com':{id:'cccccccc-cccc-cccc-cccc-cccccccccccc',role:'school'}
+ };
+ const provider={url:'https://testproject.supabase.co',publicKey:'public-test',serviceKey:'secret-test',
+  accessPolicy:createCalendarAccessPolicy({environment:'production',schoolEmail:'anna@example.com',townEmail:'comune@example.com'}),
+  fetcher:async(url,options)=>{const email=JSON.parse(options.body).email,user=users[email];return new Response(JSON.stringify({user:{id:user.id,email,email_confirmed_at:'2026-01-01T00:00:00Z',app_metadata:{calendar_role:user.role}}}),{status:200})}};
+ const login=username=>authenticateManaged(db,{username,password:'password-test',provider});
+ assert.equal((await login('anna@example.com')).role,'school');
+ assert.equal((await login('comune@example.com')).role,'town');
+ assert.equal(await login('altro@example.com'),null);
+ users['anna@example.com'].role='town';assert.equal(await login('anna@example.com'),null);
+ assert.equal(await login('anna'),null);
+ provider.accessPolicy=createCalendarAccessPolicy({environment:'production',schoolEmail:'anna@example.com'});
+ assert.equal(await login('anna@example.com'),null);
+});
+
+test('una sessione esistente viene revocata se la sua email non è più tra le due autorizzate',async()=>{
+ const db=database();const provider={url:'https://testproject.supabase.co',publicKey:'public-test',serviceKey:'secret-test',
+  accessPolicy:createCalendarAccessPolicy({environment:'production',schoolEmail:'anna@example.com',townEmail:'town@example.com'}),
+  fetcher:async()=>new Response(JSON.stringify({id:'12345678-1234-1234-1234-123456789abc',email:'anna@example.com',email_confirmed_at:'2026-01-01',app_metadata:{calendar_role:'school'}}),{status:200})};
+ const session=await createManagedSession(db,{id:'u'});
+ assert.equal((await getCurrentManagedSession(db,session.token,provider)).role,'school');
+ provider.accessPolicy=createCalendarAccessPolicy({environment:'production',schoolEmail:'different@example.com',townEmail:'town@example.com'});
+ assert.equal(await getCurrentManagedSession(db,session.token,provider),null);
+ assert.equal(await getManagedSession(db,session.token),null);
 });

@@ -5,13 +5,33 @@ const hex=bytes=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
 const hash=async token=>hex(new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(token))));
 const sessionTime=8*60*60;
 
+// La route deve costruire sempre questa policy da configurazione server attendibile.
+// Valori mancanti o non validi non autorizzano l'accesso.
+export function createCalendarAccessPolicy({environment,schoolEmail,townEmail}={}){
+  if(environment==='test')return Object.freeze({mode:'test'});
+  const normalize=value=>typeof value==='string'?value.trim().toLowerCase():'';
+  const school=normalize(schoolEmail),town=normalize(townEmail);
+  const valid=value=>value.length<=254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  if(environment!=='production' || !valid(school) || !valid(town) || school===town) return Object.freeze({mode:'blocked'});
+  return Object.freeze({mode:'production',school,town});
+}
+
+function allowedAccount(policy,email,role){
+  // Compatibilità dei chiamanti di anteprima esistenti; la route ufficiale deve
+  // sempre fornire una policy esplicita costruita da createCalendarAccessPolicy.
+  if(policy===undefined || policy?.mode==='test')return true;
+  if(policy?.mode!=='production' || !['school','town'].includes(role) || typeof email!=='string')return false;
+  return email.trim().toLowerCase()===policy[role];
+}
+
 /** È necessario applicare limitazione dei tentativi prima di chiamare questa funzione. */
 export async function authenticateManaged(db,{username,password,provider}){
+  if(provider?.accessPolicy!==undefined && !['test','production'].includes(provider.accessPolicy?.mode))return null;
   if(typeof username!=='string' || typeof password!=='string' || password.length>128)return null;
   username=username.trim().toLowerCase();
   if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username) && username.length<=254){
     const verified=await verifyProviderPassword({...provider,email:username,password});
-    if(!verified || verified.email!==username || !['school','town'].includes(verified.calendarRole))return null;
+    if(!verified || verified.email!==username || !['school','town'].includes(verified.calendarRole) || !allowedAccount(provider?.accessPolicy,verified.email,verified.calendarRole))return null;
     const existing=await db.prepare('SELECT id,provider_user_id,role FROM managed_accounts WHERE email=?').bind(username).first();
     if(existing && (existing.provider_user_id!==verified.providerUserId || existing.role!==verified.calendarRole)){
       await db.prepare('DELETE FROM managed_sessions WHERE user_id=?').bind(existing.id).run();
@@ -24,10 +44,11 @@ export async function authenticateManaged(db,{username,password,provider}){
     return user?{id:user.id,username:user.username,displayName:user.display_name,role:user.role,mustChangePassword:!!user.must_change_password}:null;
   }
   if(!/^[a-z0-9._-]{3,64}$/i.test(username))return null;
-  const record=await db.prepare("SELECT id,email,provider_user_id FROM managed_accounts WHERE username=? AND disabled=0 AND role IN ('school','town')").bind(username.toLowerCase()).first();
-  if(!record)return null;
+  const record=await db.prepare("SELECT id,email,provider_user_id,role FROM managed_accounts WHERE username=? AND disabled=0 AND role IN ('school','town')").bind(username.toLowerCase()).first();
+  if(!record || !allowedAccount(provider?.accessPolicy,record.email,record.role))return null;
   const verified=await verifyProviderPassword({...provider,email:record.email,password});
   if(!verified)return null;
+  if(provider?.accessPolicy?.mode==='production' && (verified.email!==record.email.toLowerCase() || verified.calendarRole!==record.role))return null;
   // La password è stata verificata per l'email già autorizzata in D1. Se l'utente
   // è stato ricreato nel provider, sostituiamo l'identificativo e revochiamo le
   // precedenti sessioni prima di consentire il nuovo accesso.
@@ -52,9 +73,13 @@ export async function getManagedSession(db,token,now=Math.floor(Date.now()/1000)
   return user?{id:user.id,username:user.username,displayName:user.display_name,role:user.role,mustChangePassword:!!user.must_change_password}:null;
 }
 export async function getCurrentManagedSession(db,token,provider){
+  if(provider?.accessPolicy!==undefined && !['test','production'].includes(provider.accessPolicy?.mode))return null;
   const user=await getManagedSession(db,token);if(!user)return null;
   const record=await db.prepare('SELECT email,provider_user_id FROM managed_accounts WHERE id=? AND disabled=0').bind(user.id).first();
   if(!record)return null;
+  if(!allowedAccount(provider?.accessPolicy,record.email,user.role)){
+    await revokeManagedSession(db,token);return null;
+  }
   const {getProviderUser}=await import('./supabase-auth.mjs');
   const actual=await getProviderUser(provider,record.provider_user_id);
   if(!actual || !actual.email_confirmed_at || actual.email?.toLowerCase()!==record.email.toLowerCase() || actual.app_metadata?.calendar_role!==user.role || actual.banned_until && Date.parse(actual.banned_until)>Date.now()){

@@ -37,23 +37,26 @@ export async function processQueue({query, getAccessToken, send, recipients, min
 }
 
 const clock=n=>n===1440?'24:00':`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
-export function makeMessage(to,item) {
+export function makeMessage(to,item,{mode='test'}={}) {
+  if (!['test','production'].includes(mode)) throw new Error('Modalità email non valida');
   const names={school:'Scuola Mazzolari',town:'Comune di Verolanuova'};
-  const lines=['MESSAGGIO DI PROVA: calendario di test.',`${names[item.owner]} ha inserito un evento nel calendario Auditorium.`,
-    `Evento: ${item.title || TEST_TITLE}`,`Data: ${item.event_date}`,`Orario: ${clock(item.start_minute)}–${clock(item.end_minute)}`];
+  const lines=[...(mode==='test'?['MESSAGGIO DI PROVA: calendario di test.']:[]),`${names[item.owner]} ha inserito un evento nel calendario Auditorium.`,
+    `Evento: ${item.title || (mode==='test'?TEST_TITLE:'Evento')}`,`Data: ${item.event_date}`,`Orario: ${clock(item.start_minute)}–${clock(item.end_minute)}`];
   if(item.overlap) lines.push('Attenzione: questo evento si sovrappone a un altro evento.');
   if(item.other_slot) lines.push(`L’evento interessa la fascia indicativa di ${names[item.owner==='school'?'town':'school']}.`);
   if(!item.overlap && !item.other_slot) lines.push('Questa è una comunicazione informativa.');
   const body=Buffer.from(lines.join('\r\n'),'utf8').toString('base64').match(/.{1,76}/g).join('\r\n');
-  const mime=`To: ${to}\r\nSubject: =?UTF-8?B?${Buffer.from('[TEST] Calendario Auditorium: nuovo evento').toString('base64')}?=\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${body}\r\n`;
+  const subject=mode==='test'?'[TEST] Calendario Auditorium: nuovo evento':'Calendario Auditorium: nuovo evento';
+  const mime=`To: ${to}\r\nSubject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${body}\r\n`;
   return Buffer.from(mime).toString('base64url');
 }
 
-export async function sendGmail({accessToken,to,item}, fetcher=fetch) {
+export async function sendGmail({accessToken,to,item,mode='test'}, fetcher=fetch) {
+  const message=makeMessage(to,item,{mode});
   let response;
   try { response=await fetcher('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
     method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-    body:JSON.stringify({raw:makeMessage(to,item)}),signal:AbortSignal.timeout(30000)}); }
+    body:JSON.stringify({raw:message}),signal:AbortSignal.timeout(30000)}); }
   catch {return {kind:'unknown'};}
   if (response.ok) {try {const data=await response.json();return data.id?{kind:'accepted',id:data.id}:{kind:'unknown'};} catch {return {kind:'unknown'};}}
   if (response.status===429) return {kind:'retry'};

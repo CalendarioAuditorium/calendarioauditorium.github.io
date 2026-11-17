@@ -9,6 +9,10 @@ import {stdin,stdout} from 'node:process';
 
 async function main(){
   if(process.platform!=='win32' || !process.argv[2]) throw new Error('specificare su Windows il percorso del JSON desktop');
+  if(process.argv.length>4 || (process.argv[3] && process.argv[3]!=='--production')) throw new Error('opzione non valida');
+  const production=process.argv[3]==='--production';
+  const environment=production?'gmail-production':'gmail-test';
+  const prefix=production?'PROD_':'';
   const path=realpathSync(resolve(process.argv[2]));
   const root=realpathSync(process.cwd());
   if(path.toLowerCase().startsWith((root+sep).toLowerCase())) throw new Error('il JSON deve essere fuori dal repository');
@@ -40,9 +44,9 @@ async function main(){
   if(!tokens.refresh_token || !tokens.scope?.split(' ').includes('https://www.googleapis.com/auth/gmail.send')) throw new Error('refresh token o permesso Gmail mancante');
   const rl=createInterface({input:stdin,output:stdout});
   try {
-    console.log('Autorizzazione ottenuta. Apri GitHub > Settings > Environments > gmail-test > Environment secrets.');
+    console.log(`Autorizzazione ottenuta. Apri GitHub > Settings > Environments > ${environment} > Environment secrets.`);
     console.log('Crea i tre secret nell’ordine indicato: il valore viene copiato negli appunti soltanto quando premi Invio.');
-    for(const [name,value] of [['GMAIL_CLIENT_ID',client.client_id],['GMAIL_CLIENT_SECRET',client.client_secret],['GMAIL_REFRESH_TOKEN',tokens.refresh_token]]) {
+    for(const [name,value] of [[`${prefix}GMAIL_CLIENT_ID`,client.client_id],[`${prefix}GMAIL_CLIENT_SECRET`,client.client_secret],[`${prefix}GMAIL_REFRESH_TOKEN`,tokens.refresh_token]]) {
       await rl.question(`Premi Invio per copiare ${name}; incollalo nel corrispondente secret GitHub e salva prima di proseguire. `);
       const result=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-Command','$input | Set-Clipboard'],{input:value,encoding:'utf8',windowsHide:true,stdio:['pipe','ignore','ignore']});
       if(result.status!==0) throw new Error('copia negli appunti non riuscita');

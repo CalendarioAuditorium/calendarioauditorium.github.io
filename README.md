@@ -24,4 +24,4 @@ Eseguire i test dalla radice del progetto con una versione di Node.js che includ
 node --test tests/*.test.mjs
 ```
 
-Le pagine statiche si possono servire con `python3 -m http.server 8000`, ma per autenticazione e calendario condiviso occorrono anche le Pages Functions e i servizi configurati. Le notifiche automatiche via email **non sono ancora attive**: la prova Gmail richiede migrazione del solo database di test, configurazione e verifica della ricezione. Vedere [la guida di prova](docs/notifiche-gmail-test.md).
+Le pagine statiche si possono servire con `python3 -m http.server 8000`, ma per autenticazione e calendario condiviso occorrono anche le Pages Functions e i servizi configurati. Le notifiche Gmail sono predisposte per il solo database di test e richiedono una prova di ricezione dopo ogni modifica alla configurazione. Per l'avvio immediato alla creazione di un evento serve il segreto GitHub nell'ambiente Preview di Cloudflare Pages. Vedere [la guida di prova](docs/notifiche-gmail-test.md).

@@ -13,7 +13,7 @@ function database(){
  return {db,query,event};
 }
 const recipients={school:'test-school@example.com',town:'test-town@example.com'};
-const options=(query,send,now=()=>2000000000)=>({query,send,getAccessToken:async()=> 'token',recipients,now});
+const options=(query,send,now=()=>2000000000)=>({query,send,getAccessToken:async()=> 'token',recipients,minimumCreatedAt:1,now});
 test('trigger accoda una sola comunicazione per ente e combina i motivi',()=>{
  const {db,event}=database();
  event('a','town',840,900);event('b','school',830,890);
@@ -42,24 +42,24 @@ test('evento e coda vengono annullati insieme',()=>{
  const {db,event}=database();db.exec('BEGIN');event('a');db.exec('ROLLBACK');
  assert.equal(db.prepare('SELECT count(*) n FROM notification_queue').get().n,0);
 });
-test('elaboratori concorrenti non inviano due volte e ignorano titoli reali',async()=>{
- const {db,event,query}=database();event('real','school',400,500,'2098-01-01','Evento reale');event('date','school',400,500,'2026-11-16');event('test');
+test('elaboratori concorrenti non inviano due volte e trattano qualsiasi nuovo titolo e data',async()=>{
+ const {db,event,query}=database();event('real','school',400,500,'2098-01-01','Evento senza marcatura');event('date','school',400,500,'2026-11-16');event('test');
  let calls=0;const send=async()=>{calls++;await new Promise(r=>setTimeout(r,5));return {kind:'accepted',id:'gmail-id'}};
  await Promise.all([processQueue(options(query,send)),processQueue(options(query,send))]);
- assert.equal(calls,1);assert.equal(db.prepare("SELECT status FROM notification_queue WHERE event_id='test'").get().status,'accepted');
- assert.equal(db.prepare("SELECT status FROM notification_queue WHERE event_id='real'").get().status,'pending');
- assert.equal(db.prepare("SELECT status FROM notification_queue WHERE event_id='date'").get().status,'pending');
+ assert.equal(calls,3);
+ for(const id of ['test','real','date']) assert.equal(db.prepare('SELECT status FROM notification_queue WHERE event_id=?').get(id).status,'accepted');
 });
-test('solo gli eventi esplicitamente autorizzati possono usare altri titoli e date',async()=>{
- const {db,event,query}=database();event('selected','school',540,600,'2026-11-16','Spettacolo di prova');event('other','town',840,900,'2026-11-16','Altri dati');
- const seen=[];const o=options(query,async message=>{seen.push(message.item);return {kind:'accepted',id:'ok'}});o.testEventIds=['selected'];
+test('gli eventi anteriori all’attivazione restano in coda, i nuovi vengono inviati',async()=>{
+ const {db,event,query}=database();event('old','school',540,600,'2026-11-16','Vecchia prova');event('new','town',840,900,'2026-11-16','Spettacolo di prova');
+ db.prepare("UPDATE notification_queue SET created_at=100 WHERE event_id='old'").run();
+ const seen=[];const o=options(query,async message=>{seen.push(message.item);return {kind:'accepted',id:'ok'}});o.minimumCreatedAt=100;
  await processQueue(o);assert.equal(seen.length,1);assert.equal(seen[0].title,'Spettacolo di prova');
- assert.equal(db.prepare("SELECT status FROM notification_queue WHERE event_id='other'").get().status,'pending');
+ assert.equal(db.prepare("SELECT status FROM notification_queue WHERE event_id='old'").get().status,'pending');
  const raw=Buffer.from(makeMessage('test@example.com',seen[0]),'base64url').toString();
  assert.match(Buffer.from(raw.split('\r\n\r\n')[1],'base64').toString(),/Spettacolo di prova/);
 });
-test('rifiuta elenchi di identificativi non validi prima di accedere al database',async()=>{
- const {query}=database();const o=options(query,async()=>{});o.testEventIds=["x') OR 1=1 --"];
+test('rifiuta una data di attivazione mancante prima di accedere al database',async()=>{
+ const {query}=database();const o=options(query,async()=>{});o.minimumCreatedAt=undefined;
  await assert.rejects(processQueue(o));
 });
 test('429 viene ritentato con ritardo; invio incerto non viene ritentato',async()=>{

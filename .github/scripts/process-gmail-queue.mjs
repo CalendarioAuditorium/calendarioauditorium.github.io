@@ -2,6 +2,8 @@ import {processQueue,sendGmail} from '../../server/gmail-queue.mjs';
 
 // Identificativo fissato al solo database di anteprima, non modificabile via secrets.
 const database='b2c275e3-70c6-4991-99e7-7032eb2c4577';
+// Le righe anteriori all'attivazione non vengono inviate retroattivamente.
+const minimumCreatedAt=1794901635;
 const env=process.env;
 for(const key of ['CLOUDFLARE_ACCOUNT_ID','CLOUDFLARE_API_TOKEN','GMAIL_CLIENT_ID','GMAIL_CLIENT_SECRET','GMAIL_REFRESH_TOKEN','TEST_RECIPIENT_SCHOOL','TEST_RECIPIENT_TOWN']) {
   if(!env[key]) throw new Error(`Configurazione mancante: ${key}`);
@@ -22,8 +24,9 @@ async function getAccessToken() {
   const data=await response.json();if(!data.access_token) throw new Error('Risposta di autorizzazione incompleta');return data.access_token;
 }
 try {
-  const testEventIds=(env.TEST_EVENT_IDS || '').split(',').map(id=>id.trim()).filter(Boolean);
-  const result=await processQueue({query,getAccessToken,send:sendGmail,testEventIds,recipients:{school:env.TEST_RECIPIENT_SCHOOL,town:env.TEST_RECIPIENT_TOWN}});
+  const oldPending=await query("SELECT count(*) AS count FROM notification_queue WHERE status='pending' AND created_at<=?",[minimumCreatedAt]);
+  const result=await processQueue({query,getAccessToken,send:sendGmail,minimumCreatedAt,recipients:{school:env.TEST_RECIPIENT_SCHOOL,town:env.TEST_RECIPIENT_TOWN}});
+  console.log(`Notifiche precedenti all'attivazione lasciate in attesa: ${oldPending[0]?.count ?? 0}.`);
   console.log(`Gmail: accettati ${result.accepted}, da ritentare ${result.retry}, rifiutati ${result.failed}, incerti ${result.unknown}. Verificare le caselle.`);
   if(result.failed || result.unknown) process.exitCode=1;
 } catch {console.error('Elaborazione non riuscita. Controllare configurazione e stato della coda; nessuna credenziale è stata registrata.');process.exitCode=1;}

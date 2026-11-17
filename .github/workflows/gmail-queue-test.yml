@@ -21,10 +21,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Elabora soltanto eventi fittizi
+      - name: Elabora nuovi eventi del calendario di test
         env:
           NOTIFICATION_TEST_MODE: ${{ vars.NOTIFICATION_TEST_MODE }}
-          TEST_EVENT_IDS: ${{ vars.TEST_EVENT_IDS || secrets.TEST_EVENT_IDS }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}

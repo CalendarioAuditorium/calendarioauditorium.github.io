@@ -73,3 +73,5 @@ body[data-profile="school"] .eyebrow>span{background:#dc9a68}
 .month-event small{font-size:9px;margin-top:3px}
 
 .conflict-contact:not([hidden]){background:#fff5d5;border:1px solid #ecd584;border-radius:8px;padding:12px 14px;color:#765819;font-size:12px;line-height:1.5}.conflict-contact p{margin:0 0 10px}.contact-buttons{display:flex;flex-wrap:wrap;gap:8px}.contact-link:not([hidden]){display:inline-block;text-decoration:none;margin-top:8px}
+
+.privacy-link{margin:20px 0 0;text-align:center;font-size:12px}.privacy-link a,footer a{color:#527548;text-decoration:underline;text-underline-offset:3px}

@@ -1,0 +1,35 @@
+name: Coda Gmail - produzione
+on:
+  schedule:
+    - cron: '3-59/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gmail-queue-production
+  cancel-in-progress: false
+jobs:
+  queue:
+    # Variabile del repository; l'ambiente deve essere limitato al solo main.
+    if: github.repository == 'CalendarioAuditorium/calendarioauditorium.github.io' && github.ref == 'refs/heads/main' && vars.PROD_NOTIFICATIONS_ENABLED == 'enabled'
+    environment: gmail-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Elabora la coda di produzione
+        env:
+          PROD_NOTIFICATIONS_ENABLED: ${{ vars.PROD_NOTIFICATIONS_ENABLED }}
+          PROD_D1_DATABASE_ID: ${{ vars.PROD_D1_DATABASE_ID }}
+          PROD_NOTIFICATION_START_UNIX: ${{ vars.PROD_NOTIFICATION_START_UNIX }}
+          PROD_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PROD_CLOUDFLARE_ACCOUNT_ID }}
+          PROD_CLOUDFLARE_API_TOKEN: ${{ secrets.PROD_CLOUDFLARE_API_TOKEN }}
+          PROD_GMAIL_CLIENT_ID: ${{ secrets.PROD_GMAIL_CLIENT_ID }}
+          PROD_GMAIL_CLIENT_SECRET: ${{ secrets.PROD_GMAIL_CLIENT_SECRET }}
+          PROD_GMAIL_REFRESH_TOKEN: ${{ secrets.PROD_GMAIL_REFRESH_TOKEN }}
+          PROD_RECIPIENT_SCHOOL: ${{ secrets.PROD_RECIPIENT_SCHOOL }}
+          PROD_RECIPIENT_TOWN: ${{ secrets.PROD_RECIPIENT_TOWN }}
+        run: node .github/scripts/process-gmail-queue-production.mjs

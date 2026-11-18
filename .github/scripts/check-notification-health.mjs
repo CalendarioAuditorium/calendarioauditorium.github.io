@@ -35,6 +35,7 @@ try {
   for(const [name,item] of Object.entries(result.expiry)) {
     if(item.state==='unconfigured') console.log(`Scadenza ${name}: non monitorata (data non configurata).`);
     else if(item.state==='no_expiration_declared') console.log(`Scadenza ${name}: nessuna scadenza dichiarata; verificare in caso di revoca.`);
+    else if(item.state==='no_expiration_declared') console.log(`Scadenza ${name}: nessuna scadenza dichiarata.`);
     else if(item.state==='invalid') console.error(`Scadenza ${name}: data non valida.`);
     else console.log(`Scadenza ${name}: ${item.days} giorni (data dichiarata).`);
   }

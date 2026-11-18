@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Informativa sulla privacy · Calendario Auditorium</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f2f6f0;color:#23342e;font:16px/1.7 system-ui,sans-serif}main{max-width:820px;margin:32px auto;padding:40px;background:#fff;border:1px solid #e7eee6;border-radius:16px}a{color:#426d36}h1,h2{line-height:1.25}h1{font-size:2rem}h2{font-size:1.25rem;margin-top:2rem}.brand{font-weight:700;letter-spacing:.08em;font-size:.8rem}.notice{background:#fff5d5;border:1px solid #ecd584;border-radius:8px;padding:16px}.pending{color:#765819}code{overflow-wrap:anywhere}@media(max-width:600px){main{margin:0;padding:24px;border:0;border-radius:0}h1{font-size:1.65rem}}
+  </style>
+</head>
+<body>
+<main>
+  <p class="brand"><a href="index.html">← CALENDARIO AUDITORIUM · VEROLANUOVA</a></p>
+  <h1>Informativa sulla privacy</h1>
+  <p class="notice"><strong>Bozza relativa alla versione condivisa del calendario.</strong> I punti indicati come da confermare non sono ancora definiti. Il sito principale attualmente presenta una versione dimostrativa; le funzioni descritte qui riguardano la versione condivisa in preparazione.</p>
+
+  <h2>Titolare e contatti</h2>
+  <p>Il titolare indicato per il servizio è il Comune di Verolanuova, Piazza Libertà 39, 25028 Verolanuova (BS). Recapiti istituzionali pubblicati dal Comune: <a href="mailto:segreteria@comune.verolanuova.bs.it">segreteria@comune.verolanuova.bs.it</a> e PEC <a href="mailto:protocollo@pec.comune.verolanuova.bs.it">protocollo@pec.comune.verolanuova.bs.it</a>.</p>
+  <p class="pending"><strong>Da confermare:</strong> il ruolo del Comune per questo servizio, l'eventuale ruolo della scuola e i recapiti del responsabile della protezione dei dati.</p>
+
+  <h2>A cosa serve il calendario</h2>
+  <p>Il servizio consente agli utenti autorizzati della scuola e del Comune di consultare e gestire il calendario condiviso dell'Auditorium e di ricevere avvisi email quando viene creato un evento. Gli avvisi riguardano, secondo il caso, una prenotazione nella fascia dell'altro ente, una sovrapposizione oppure una comunicazione alla controparte.</p>
+  <p class="pending"><strong>Da confermare:</strong> le finalità istituzionali specifiche e la base giuridica applicabile.</p>
+
+  <h2>Quali dati vengono trattati</h2>
+  <p>Per l'accesso vengono trattati l'indirizzo email dell'account, il ruolo assegnato all'ente, identificativi tecnici e dati di sessione. Le password sono gestite dal servizio di autenticazione Supabase; il calendario non le conserva in chiaro nel proprio database.</p>
+  <p>Per gli eventi vengono trattati titolo, ente, data, orario, eventuali note, identificativo di chi ha creato l'evento e dati tecnici di creazione o modifica. Titolo e note possono contenere dati personali se inseriti dagli utenti. È opportuno inserire solo le informazioni necessarie alla gestione dell'Auditorium.</p>
+  <p>Per le notifiche vengono conservati nella coda il titolo dell'evento, l'ente, la data, l'orario, il destinatario logico, le ragioni dell'avviso e lo stato dell'invio. La coda conserva una copia di questi dati anche se l'evento viene poi modificato o cancellato. Le note non sono inserite nell'email generata.</p>
+
+  <h2>Gmail e destinatari degli avvisi</h2>
+  <p>Un account Gmail autorizzato viene utilizzato come mittente per inviare gli avvisi agli indirizzi configurati per i due enti. L'applicazione richiede il permesso Google <code>gmail.send</code> per inviare email per conto del mittente; non richiede un permesso per leggere o gestire la posta della casella. I dati contenuti nelle email sono trasmessi tramite Gmail ai destinatari configurati.</p>
+  <p>Cloudflare Pages e D1 sono utilizzati per il sito e il database; Supabase per l'autenticazione; GitHub Actions e Google Gmail API per l'elaborazione e l'invio delle notifiche.</p>
+  <p class="pending"><strong>Da verificare:</strong> i ruoli privacy effettivi di ciascun fornitore, i contratti e gli eventuali trasferimenti internazionali.</p>
+
+  <h2>Conservazione</h2>
+  <p class="pending"><strong>Da definire e confermare:</strong> tempi o criteri di conservazione per eventi, account, sessioni, notifiche, revisioni, log e backup.</p>
+  <p>Il codice attualmente preparato non cancella automaticamente dalla coda le copie degli eventi dopo la cancellazione dell'evento originale.</p>
+
+  <h2>Diritti e richieste</h2>
+  <p>Gli interessati possono rivolgersi al titolare per richiedere informazioni ed esercitare i diritti applicabili previsti dalla normativa sulla protezione dei dati. È possibile proporre reclamo all'autorità di controllo competente.</p>
+  <p class="pending"><strong>Da confermare:</strong> i canali per le richieste e i contatti del responsabile della protezione dei dati.</p>
+
+  <h2>Informazioni da verificare prima dell'uso</h2>
+  <p>Il Comune deve verificare che l'informativa descriva le impostazioni effettivamente messe in produzione, i destinatari, le responsabilità dei fornitori e le modalità di gestione dei dati. Eventuali variazioni delle funzioni o del trattamento richiedono un aggiornamento del testo.</p>
+</main>
+</body>
+</html>

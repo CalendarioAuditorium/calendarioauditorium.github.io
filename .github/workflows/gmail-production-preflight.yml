@@ -1,0 +1,27 @@
+name: Verifica preparazione Gmail produzione
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    if: github.repository == 'CalendarioAuditorium/calendarioauditorium.github.io' && github.ref == 'refs/heads/main'
+    environment: gmail-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verifica credenziali e struttura senza inviare email
+        env:
+          PROD_D1_DATABASE_ID: ${{ vars.PROD_D1_DATABASE_ID }}
+          PROD_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PROD_CLOUDFLARE_ACCOUNT_ID }}
+          PROD_CLOUDFLARE_API_TOKEN: ${{ secrets.PROD_CLOUDFLARE_API_TOKEN }}
+          PROD_GMAIL_CLIENT_ID: ${{ secrets.PROD_GMAIL_CLIENT_ID }}
+          PROD_GMAIL_CLIENT_SECRET: ${{ secrets.PROD_GMAIL_CLIENT_SECRET }}
+          PROD_GMAIL_REFRESH_TOKEN: ${{ secrets.PROD_GMAIL_REFRESH_TOKEN }}
+          PROD_RECIPIENT_SCHOOL: ${{ secrets.PROD_RECIPIENT_SCHOOL }}
+          PROD_RECIPIENT_TOWN: ${{ secrets.PROD_RECIPIENT_TOWN }}
+        run: node .github/scripts/preflight-gmail-production.mjs

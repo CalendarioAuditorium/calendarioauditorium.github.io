@@ -24,4 +24,7 @@ jobs:
           PROD_GMAIL_REFRESH_TOKEN: ${{ secrets.PROD_GMAIL_REFRESH_TOKEN }}
           PROD_RECIPIENT_SCHOOL: ${{ secrets.PROD_RECIPIENT_SCHOOL }}
           PROD_RECIPIENT_TOWN: ${{ secrets.PROD_RECIPIENT_TOWN }}
+          PROD_NOTIFICATION_START_UNIX: ${{ secrets.PROD_NOTIFICATION_START_UNIX }}
+          PROD_GITHUB_DISPATCH_TOKEN_EXPIRES_ON: ${{ secrets.PROD_GITHUB_DISPATCH_TOKEN_EXPIRES_ON }}
+          PREFLIGHT_EXPECTED_START_UNIX: '1795019107'
         run: node .github/scripts/preflight-gmail-production.mjs

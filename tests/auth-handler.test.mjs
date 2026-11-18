@@ -1,16 +1,32 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
-import {createUser} from '../server/identity.mjs';
-import {handleAuth} from '../server/auth-handler.mjs';
-function database(){const sqlite=new DatabaseSync(':memory:');for(const file of ['0002_identity.sql','0003_login_limits.sql'])sqlite.exec(readFileSync(`migrations/${file}`,'utf8'));return {async batch(statements){sqlite.exec('BEGIN');try{for(const s of statements)await s.run();sqlite.exec('COMMIT')}catch(e){sqlite.exec('ROLLBACK');throw e}},prepare(sql){let values=[];return {bind(...args){values=args;return this},async run(){const r=sqlite.prepare(sql).run(...values);return {meta:{changes:Number(r.changes)}}},async all(){return {results:sqlite.prepare(sql).all(...values)}},async first(){return sqlite.prepare(sql).get(...values)||null}}}};}
-const origin='https://calendar.example';
+import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';import {handleAuth} from '../server/auth-handler.mjs';import {createManagedSession,createCalendarAccessPolicy} from '../server/managed-identity.mjs';
+function database(){const sqlite=new DatabaseSync(':memory:');for(const f of ['0003_login_limits.sql','0004_managed_identity.sql'])sqlite.exec(readFileSync(`migrations/${f}`,'utf8'));return {async batch(statements){sqlite.exec('BEGIN');try{for(const s of statements)await s.run();sqlite.exec('COMMIT')}catch(e){sqlite.exec('ROLLBACK');throw e}},prepare(sql){let v=[];return {bind(...args){v=args;return this},async run(){const r=sqlite.prepare(sql).run(...v);return {meta:{changes:Number(r.changes)}}},async all(){return {results:sqlite.prepare(sql).all(...v)}},async first(){return sqlite.prepare(sql).get(...v)||null}}}};}
+const origin='https://calendar.example',secret='0123456789abcdef0123456789abcdef';
 function post(action,data,cookie='',extra={}){return new Request(`${origin}/api/${action}`,{method:'POST',headers:{Origin:origin,'CF-Connecting-IP':'203.0.113.10','Content-Type':'application/json',Cookie:cookie,...extra},body:JSON.stringify(data)});}
-const sessionCookie=response=>response.headers.get('Set-Cookie').split(';')[0];
-test('accesso, cambio password obbligatorio, creazione account CED e uscita',async()=>{const db=database();const admin=await createUser(db,{role:'ced'},{username:'admin',displayName:'CED',role:'ced',password:'iniziale-123456'});assert.equal(admin.mustChangePassword,true);let response=await handleAuth(post('login',{username:'admin',password:'iniziale-123456'}),db);assert.equal(response.status,200);const first=sessionCookie(response);assert.match(response.headers.get('Set-Cookie'),/Secure; HttpOnly; SameSite=Strict/);assert.equal((await handleAuth(post('users',{username:'scuola',displayName:'Scuola',role:'school',password:'provvisorio-1234'},first),db)).status,403);
-response=await handleAuth(post('password',{currentPassword:'iniziale-123456',newPassword:'nuovapassword-123'},first),db);assert.equal(response.status,200);assert.equal((await handleAuth(new Request(`${origin}/api/session`,{headers:{Cookie:first}}),db)).status,401);
-response=await handleAuth(post('login',{username:'admin',password:'nuovapassword-123'}),db);assert.equal(response.status,200);const current=sessionCookie(response);assert.equal((await handleAuth(post('users',{username:'scuola',displayName:'Scuola',role:'school',password:'provvisorio-1234'},current),db)).status,201);assert.equal((await handleAuth(post('logout',{},current),db)).status,200);assert.equal((await handleAuth(new Request(`${origin}/api/session`,{headers:{Cookie:current}}),db)).status,401);});
-test('rifiuta richieste da altra origine e limita i tentativi di login',async()=>{const db=database();assert.equal((await handleAuth(post('login',{username:'uno',password:'errata'},'',{Origin:'https://outside.example'}),db)).status,403);for(let i=0;i<10;i++)assert.equal((await handleAuth(post('login',{username:'uno',password:'errata'}),db)).status,401);assert.equal((await handleAuth(post('login',{username:'uno',password:'errata'}),db)).status,429);});
+function provider(){const accounts=new Map([['ced@example.com',{id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',password:'iniziale-123456'}]]);return {url:'https://testproject.supabase.co',publicKey:'public-test',serviceKey:'secret-test',fetcher:async(url,options)=>{const data=options.body?JSON.parse(options.body):{};if(url.includes('/token?')){const u=accounts.get(data.email);return u?.password===data.password?new Response(JSON.stringify({user:{id:u.id},access_token:'session-'+data.email}),{status:200}):new Response('{}',{status:400});}if(url.endsWith('/admin/users') && options.method==='POST'){const user={id:'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',password:data.password};accounts.set(data.email,user);return new Response(JSON.stringify({id:user.id}),{status:201});}if(url.endsWith('/user') && options.method==='PUT'){const email=options.headers.Authorization.replace('Bearer session-',''),user=accounts.get(email);if(!user)return new Response('{}',{status:401});user.password=data.password;return new Response('{}',{status:200});}if(url.includes('/admin/users/') && !options.method)return new Response(JSON.stringify({id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',email:'ced@example.com',email_confirmed_at:'2026-01-01T00:00:00Z',app_metadata:{calendar_role:'school'}}),{status:200});if(url.includes('/admin/users/') && options.method==='DELETE')return new Response('{}',{status:200});throw Error('URL non previsto')}};}
+const c=r=>r.headers.get('Set-Cookie').split(';')[0];
+test('solo i profili degli enti accedono e le vecchie API CED non sono disponibili',async()=>{
+const db=database(), p=provider(), options={provider:p};
+await db.prepare('INSERT INTO managed_accounts(id,username,display_name,role,email,provider_user_id,must_change_password) VALUES (?,?,?,?,?,?,?)').bind('admin','ced','CED','ced','ced@example.com','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',0).run();
+assert.equal((await handleAuth(post('login',{username:'ced',password:'iniziale-123456'}),db,options)).status,401);
+const old=await createManagedSession(db,{id:'admin'});
+assert.equal((await handleAuth(new Request(`${origin}/api/session`,{headers:{Cookie:`__Host-auditorium=${old.token}`}}),db,options)).status,401);
+assert.equal((await handleAuth(post('bootstrap',{}),db,options)).status,401);
+assert.equal((await handleAuth(post('users',{}),db,options)).status,401);
+});
+test('un account scuola già autorizzato può accedere con Supabase',async()=>{
+const db=database(), p=provider(), options={provider:p};
+await db.prepare('INSERT INTO managed_accounts(id,username,display_name,role,email,provider_user_id,must_change_password) VALUES (?,?,?,?,?,?,?)').bind('school','scuola','Scuola','school','ced@example.com','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',0).run();
+const r=await handleAuth(post('login',{username:'scuola',password:'iniziale-123456'}),db,options);
+assert.equal(r.status,200);assert.equal((await r.json()).user.role,'school');
+assert.equal((await handleAuth(new Request(`${origin}/api/session`,{headers:{Cookie:c(r)}}),db,options)).status,200);
+});
+test('blocca origini estranee e limita tentativi',async()=>{const db=database(),options={provider:provider()};assert.equal((await handleAuth(post('login',{username:'x',password:'x'},'',{Origin:'https://outside.example'}),db,options)).status,403);for(let i=0;i<10;i++)assert.equal((await handleAuth(post('login',{username:'nessuno',password:'errata'}),db,options)).status,401);assert.equal((await handleAuth(post('login',{username:'nessuno',password:'errata'}),db,options)).status,429);});
 
-test('la configurazione iniziale richiede il codice e crea un solo CED',async()=>{const db=database(), secret='0123456789abcdef0123456789abcdef';const admin={username:'primo',displayName:'CED',password:'iniziale-123456',setupCode:secret};assert.equal((await handleAuth(post('bootstrap',{...admin,setupCode:'errato'}),db,{bootstrapToken:secret})).status,403);assert.equal((await handleAuth(post('bootstrap',admin),db,{bootstrapToken:secret})).status,201);assert.equal((await handleAuth(post('bootstrap',{...admin,username:'secondo'}),db,{bootstrapToken:secret})).status,409);const response=await handleAuth(post('login',{username:'primo',password:'iniziale-123456'}),db);assert.equal((await response.json()).user.mustChangePassword,false);});
+test('accesso di produzione non disponibile se policy o chiave server mancano',async()=>{
+ const db=database(),p=provider();
+ p.accessPolicy=createCalendarAccessPolicy({environment:'production',schoolEmail:'school@example.com'});
+ assert.equal((await handleAuth(post('login',{username:'school@example.com',password:'fake'}),db,{provider:p})).status,503);
+ p.accessPolicy=createCalendarAccessPolicy({environment:'production',schoolEmail:'school@example.com',townEmail:'town@example.com'});
+ delete p.serviceKey;
+ assert.equal((await handleAuth(new Request(`${origin}/api/session`),db,{provider:p})).status,503);
+});

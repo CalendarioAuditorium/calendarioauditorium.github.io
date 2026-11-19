@@ -22,10 +22,15 @@
   function eventButton(event, className) {
     const button = document.createElement('button'); button.type = 'button'; button.className = `${className} ${event.owner === 'town' ? 'town' : ''}`;
     const overlapping = events.some(other => other.id !== event.id && other.date === event.date && minutes(event.start) < minutes(other.end,true) && minutes(event.end,true) > minutes(other.start));
-    if (overlapping) { button.classList.add('has-overlap'); button.title = 'Attenzione: evento sovrapposto a un altro appuntamento'; button.setAttribute('aria-label', `${event.title}, ${event.start}–${event.end}. Attenzione: evento sovrapposto a un altro appuntamento`); }
+    const notes = typeof event.notes === 'string' ? event.notes.trim() : '';
+    const description = `${event.title}, ${event.start}–${event.end}${notes ? `. Note: ${notes}` : ''}${overlapping ? '. Attenzione: evento sovrapposto a un altro appuntamento' : ''}`;
+    button.title = description;
+    button.setAttribute('aria-label', description);
+    if (overlapping) button.classList.add('has-overlap');
     const title = document.createElement('b'); title.textContent = event.title;
     if (className === 'event') { const time = document.createElement('small'); time.textContent = `${event.start} – ${event.end}`; button.append(title,time); button.style.top = `${minutes(event.start)*0.8}px`; button.style.height = `${Math.max((minutes(event.end,true)-minutes(event.start))*0.8,22)}px`; }
     else { const time = document.createElement('small'); time.textContent = `${event.start} – ${event.end}`; button.append(title,time); }
+    if (notes) { const preview = document.createElement('span'); preview.className = 'event-notes'; preview.textContent = notes; button.classList.add('has-notes'); button.append(preview); }
     button.addEventListener('click', e => {e.stopPropagation(); showDetails(event);}); return button;
   }
   function render() {

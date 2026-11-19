@@ -75,3 +75,10 @@ body[data-profile="school"] .eyebrow>span{background:#dc9a68}
 .conflict-contact:not([hidden]){background:#fff5d5;border:1px solid #ecd584;border-radius:8px;padding:12px 14px;color:#765819;font-size:12px;line-height:1.5}.conflict-contact p{margin:0 0 10px}.contact-buttons{display:flex;flex-wrap:wrap;gap:8px}.contact-link:not([hidden]){display:inline-block;text-decoration:none;margin-top:8px}
 
 .privacy-link{margin:20px 0 0;text-align:center;font-size:12px}.privacy-link a,footer a{color:#527548;text-decoration:underline;text-underline-offset:3px}
+
+/* Anteprima delle note nelle tre viste del calendario. */
+.month-event .event-notes{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:3px;font-size:9px;font-weight:400}
+.event.has-notes{display:flex;flex-wrap:wrap;align-content:flex-start;column-gap:4px}
+.event.has-notes b{flex:0 1 42%;min-width:0}
+.event.has-notes .event-notes{order:1;flex:1 1 0;min-width:2ch;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px;font-weight:400}
+.event.has-notes small{order:2;flex:0 0 100%}

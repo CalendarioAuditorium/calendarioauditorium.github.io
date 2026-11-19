@@ -6,7 +6,13 @@
   padding: 10px 12px;
 }
 
-.login-brand { width: min(100%, 270px); }
+.login-brand {
+  width: 100%;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
 .auditorium-logo { display: block; width: 100%; height: auto; }
 .logo-frame { display: block; overflow: hidden; }
 body[data-profile="school"] .logo-frame { border-color: #e8ac7b; background: #fff5ec; }

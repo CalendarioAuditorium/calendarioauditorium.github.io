@@ -82,3 +82,6 @@ body[data-profile="school"] .eyebrow>span{background:#dc9a68}
 .event.has-notes b{flex:0 1 42%;min-width:0}
 .event.has-notes .event-notes{order:1;flex:1 1 0;min-width:2ch;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px;font-weight:400}
 .event.has-notes small{order:2;flex:0 0 100%}
+.month-event .event-notes,.event.has-notes .event-notes{background:#ffed9c;color:#453600;border-radius:4px}
+.month-event .event-notes{padding:3px 5px}
+.event.has-notes .event-notes{padding:0 3px}

@@ -1,0 +1,24 @@
+.login-brand,
+.logo-frame {
+  background: #fff;
+  border: 1px solid #e2ebdc;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.login-brand { width: min(100%, 270px); }
+.auditorium-logo { display: block; width: 100%; height: auto; }
+.logo-frame { display: block; overflow: hidden; }
+body[data-profile="school"] .logo-frame { border-color: #e8ac7b; background: #fff5ec; }
+body[data-profile="town"] .logo-frame { border-color: #a9c6dc; background: #f1f7fb; }
+.mobile-logo { display: none; }
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .sidebar .logo-frame { width: 41px; height: 41px; padding: 3px; }
+  .sidebar .auditorium-logo { width: 120px; max-width: none; }
+}
+
+@media (max-width: 600px) {
+  .mobile-logo { display: block; width: 150px; padding: 4px 7px; }
+}
+

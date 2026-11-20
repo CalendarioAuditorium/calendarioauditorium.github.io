@@ -5,12 +5,20 @@
   <title>Calendario Auditorium</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=calendario-responsive-1">
+  <link rel="stylesheet" href="styles.css?v=calendario-equilibrato-1">
   <link rel="stylesheet" href="logo-auditorium.css">
 </head>
 <body>
+  <aside class="sidebar">
+    <a class="brand logo-frame" href="index.html" aria-label="Calendario Auditorium Verolanuova"><img class="auditorium-logo" src="logo-auditorium.png" alt="Auditorium Verolanuova"></a>
+    <div class="sidebar-label">SPAZIO CONDIVISO</div>
+    <div class="nav-active"><span aria-hidden="true">▦</span> Calendario</div>
+    <div class="sidebar-label calendar-label">I CALENDARI</div>
+    <button type="button" class="calendar-key" data-calendar="school" aria-label="Mostra gli eventi della Scuola Mazzolari"><span class="key-dot school-dot"></span><span>Scuola Mazzolari<small>00:00 – 14:00</small></span></button>
+    <button type="button" class="calendar-key" data-calendar="town" aria-label="Mostra gli eventi del Comune di Verolanuova"><span class="key-dot town-dot"></span><span>Comune di Verolanuova<small>14:00 – 00:00</small></span></button>
+  </aside>
   <main class="main">
-    <header class="topbar"><a class="header-logo" href="index.html" aria-label="Calendario Auditorium Verolanuova"><img class="auditorium-logo" src="logo-auditorium.png" alt="Auditorium Verolanuova"></a><div class="top-right"><button class="profile-button" id="profileButton" aria-label="Apri menu account"><span class="avatar" id="avatar"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20a7 7 0 0 1 14 0"></path></svg></span><span class="profile-text"><b id="profileName">Accedi</b><small id="profileSubtitle">Accesso enti</small></span></button></div></header>
+    <header class="topbar"><a class="header-logo" href="index.html" aria-label="Calendario Auditorium Verolanuova"><img class="auditorium-logo" src="logo-auditorium.png" alt="Auditorium Verolanuova"></a><span class="topbar-label">AUDITORIUM VEROLANUOVA</span><div class="top-right"><button class="profile-button" id="profileButton" aria-label="Apri menu account"><span class="avatar" id="avatar"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20a7 7 0 0 1 14 0"></path></svg></span><span class="profile-text"><b id="profileName">Accedi</b><small id="profileSubtitle">Accesso enti</small></span></button></div></header>
     <section class="content">
       <div class="calendar-intro"><h1>Calendario auditorium</h1><p id="calendarStatus" class="calendar-status" role="status" aria-live="polite">Sola visualizzazione · Accedi per gestire gli eventi</p></div>
       <div class="calendar-card">
@@ -26,5 +34,5 @@
   <dialog id="calendarListDialog" aria-labelledby="calendarListTitle"><div class="dialog-head"><div><div class="eyebrow">ELENCO APPUNTAMENTI</div><h2 id="calendarListTitle"></h2></div><button class="close" type="button" data-close="calendarListDialog" aria-label="Chiudi">×</button></div><div id="calendarList" class="calendar-list"></div><div class="dialog-actions"><button class="secondary-button" type="button" data-close="calendarListDialog">Chiudi</button></div></dialog>
   <dialog id="detailsDialog"><div class="dialog-head"><div><div class="eyebrow" id="detailsOwner"></div><h2 id="detailsTitle"></h2></div><button class="close" data-close="detailsDialog" aria-label="Chiudi">×</button></div><p id="detailsTime"></p><p id="detailsRequest"></p><p id="detailsNotes"></p><div id="conflictContact" class="conflict-contact" hidden><p>⚠️ Questo evento si sovrappone a un evento dell’altro ente. Contattatevi per concordare gli orari.</p><div id="contactButtons" class="contact-buttons"></div></div><div class="dialog-actions"><button id="deleteEvent" class="delete-button">Elimina evento</button><button id="editEvent" class="primary-button" type="button">Modifica evento</button><button class="secondary-button" data-close="detailsDialog">Chiudi</button></div></dialog>
   <dialog id="contactDialog"><div class="dialog-head"><div><div class="eyebrow">CONTATTA L’ENTE</div><h2 id="contactTitle"></h2></div><button class="close" data-close="contactDialog" aria-label="Chiudi">×</button></div><p id="contactNumber"></p><a id="contactCall" class="primary-button contact-link" hidden>Chiama</a></dialog>
-  <script src="app.js?v=calendario-responsive-1"></script>
+  <script src="app.js?v=calendario-equilibrato-1"></script>
 </body></html>

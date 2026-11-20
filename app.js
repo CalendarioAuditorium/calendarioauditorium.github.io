@@ -38,7 +38,7 @@
   function render() {
     document.body.dataset.view=view;
     document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('selected', b.dataset.view === view));
-    const calendar = $('#calendar'); calendar.replaceChildren();
+    const calendar = $('#calendar'), scroll=$('.calendar-scroll'), scrollTop=scroll.scrollTop, scrollLeft=scroll.scrollLeft; calendar.replaceChildren();
     const title = $('#periodTitle');
     if (view === 'month') {
       title.textContent = format(current,{month:'long',year:'numeric'});
@@ -57,7 +57,7 @@
         ['school','town'].forEach(owner=>{if(dayEvents.some(e=>e.owner===owner)){const dot=document.createElement('i');dot.className=owner==='school'?'school-dot':'town-dot';indicators.append(dot);}});
         if(dayEvents.length>1){const count=document.createElement('small');count.textContent=dayEvents.length;indicators.append(count);}cell.append(indicators);
         dayEvents.forEach(e=>cell.append(eventButton(e,'month-event')));
-        cell.addEventListener('click',()=>{selectedDay=key;if(compactScreen.matches){render();calendar.querySelector('.month-date[aria-pressed="true"]')?.focus({preventScroll:true});}else if(profile){openEvent(key);}else{current=dateFromKey(key);view='day';render();}});grid.append(cell);
+        cell.addEventListener('click',()=>{selectedDay=key;if(compactScreen.matches){render();calendar.querySelector('.month-date[aria-pressed="true"]')?.focus({preventScroll:true});}else if(profile){openEvent(key);}else{current=dateFromKey(key);view='day';render();$('.calendar-scroll').scrollTop=7*48-12;}});grid.append(cell);
       }
       calendar.append(grid);
       const agenda=document.createElement('section');agenda.className='mobile-agenda';agenda.setAttribute('aria-label','Eventi del giorno selezionato');
@@ -77,6 +77,14 @@
     const times=document.createElement('div');times.className='time-col';for(let h=0;h<24;h++){const label=document.createElement('span');label.className='time-label';label.style.top=`${h*48+1}px`;label.textContent=`${String(h).padStart(2,'0')}:00`;times.append(label);}grid.append(times);
     for(let i=0;i<count;i++){const d=addDays(start,i),key=keyFromDate(d),col=document.createElement('div');col.className='day-column';const dayEvents=events.filter(e=>e.date===key).sort((a,b)=>minutes(a.start)-minutes(b.start)); let group=[]; const drawGroup=()=>{const lanes=[];group.forEach(item=>{let lane=lanes.findIndex(end=>end<=minutes(item.start));if(lane<0)lane=lanes.length;lanes[lane]=minutes(item.end,true);item.lane=lane;});group.forEach(item=>{const button=eventButton(item,'event');button.style.left=`calc(${item.lane*100/lanes.length}% + 3px)`;button.style.width=`calc(${100/lanes.length}% - 6px)`;button.style.right='auto';col.append(button);});if(group.length>1){const marker=document.createElement('div');marker.className='overlap-strip';marker.setAttribute('aria-hidden','true');marker.style.top=`${Math.max(...group.map(item=>minutes(item.start)*0.8+Math.max((minutes(item.end,true)-minutes(item.start))*0.8,22)))-4}px`;col.append(marker);}};dayEvents.forEach(item=>{if(group.length && minutes(item.start)>=Math.max(...group.map(e=>minutes(e.end,true)))){drawGroup();group=[];}group.push({...item});});if(group.length)drawGroup();col.addEventListener('click',e=>{const hour=Math.min(23,Math.floor((e.clientY-col.getBoundingClientRect().top)/48));openEvent(key,hour);});grid.append(col);}
     calendar.append(grid);
+    if(view==='day'){
+      const agenda=document.createElement('section');agenda.className='day-agenda';agenda.setAttribute('aria-label','Appuntamenti del giorno');
+      const heading=document.createElement('h3');heading.textContent='Appuntamenti del giorno';agenda.append(heading);
+      const dayEvents=events.filter(e=>e.date===keyFromDate(current)).sort((a,b)=>a.start.localeCompare(b.start));
+      if(!dayEvents.length){const empty=document.createElement('p');empty.className='day-agenda-empty';empty.textContent='Nessun evento in questa giornata.';agenda.append(empty);}
+      dayEvents.forEach(event=>agenda.append(eventButton(event,'agenda-event')));calendar.append(agenda);
+    }
+    scroll.scrollTop=scrollTop;scroll.scrollLeft=scrollLeft;
   }
   function updateOverlapWarning() {
     const form=$('#eventForm'), warning=$('#overlapWarning');
@@ -132,7 +140,7 @@
   function setProfile(value){profile=value;document.body.dataset.profile=profile;$('#profileName').textContent=profiles[profile];$('#profileSubtitle').textContent='Account ente';$('#newEvent').hidden=false;$('#calendarStatus').hidden=true;$('#accountName').textContent=profiles[profile];$('#avatar').textContent=profile==='school'?'S':'C';$('#avatar').className='avatar '+(profile==='school'?'school-avatar':profile==='town'?'town-avatar':'');}
   try{const user=(await api('session')).user;if(user && user.mustChangePassword){location.href='login.html';return;}if(user && Object.hasOwn(profiles,user.role))setProfile(user.role);await loadEvents();}catch(e){$('#calendarStatus').hidden=false;$('#calendarStatus').textContent='Impossibile caricare il calendario. Riprova più tardi.';}
   $('#logoutButton').addEventListener('click',async()=>{try{await api('logout',request('POST',{}));location.replace('index.html');}catch(e){alert(e.message)}});
-  document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{view=button.dataset.view;render();}));
+  document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{const previous=view;view=button.dataset.view;render();if(view!=='month' && previous!==view){const scroll=$('.calendar-scroll');scroll.scrollTop=7*48-12;}}));
   $('#today').addEventListener('click',()=>{selectedDay=romeToday();current=dateFromKey(selectedDay);render();});
   function move(direction){if(view==='month'){current=new Date(current.getFullYear(),current.getMonth()+direction,1,12);}else current=addDays(current,direction*(view==='week'?7:1));selectedDay=keyFromDate(current);render();}
   compactScreen.addEventListener('change',render);

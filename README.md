@@ -4,7 +4,7 @@ Il calendario è condiviso tra Scuola Mazzolari e Comune di Verolanuova. Gli eve
 
 ## Account e permessi
 
-Il calendario è consultabile anche senza accesso: titolo, ente, data e orari degli eventi sono pubblici, mentre le note e i dati di creazione sono riservati agli account. I titoli non devono contenere informazioni riservate o dati personali non destinati alla pubblicazione.
+Il calendario è consultabile anche senza accesso: titolo, ente, data, orari, stato della richiesta formale e note degli eventi sono pubblici, mentre i dati di creazione sono riservati agli account. Titoli e note non devono contenere informazioni riservate o dati personali non destinati alla pubblicazione.
 
 Gli account si gestiscono in Supabase Auth. Per accedere al calendario un utente deve avere l'email confermata e un ruolo assegnato dall'amministratore nei **metadati amministrativi** (`app_metadata`):
 

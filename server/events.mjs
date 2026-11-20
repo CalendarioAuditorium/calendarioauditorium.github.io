@@ -41,7 +41,7 @@ export async function listEvents(db, identity) {
 // La vista pubblica espone solo le informazioni necessarie a consultare il calendario.
 export async function listPublicEvents(db) {
   const result = await db.prepare(`SELECT id, title, owner, event_date AS date,
-    start_minute AS startMinute, end_minute AS endMinute, formal_request_done AS formalRequestDone
+    start_minute AS startMinute, end_minute AS endMinute, formal_request_done AS formalRequestDone, notes
     FROM events ORDER BY event_date, start_minute, id`).all();
   return result.results;
 }

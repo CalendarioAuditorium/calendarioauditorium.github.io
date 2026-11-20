@@ -287,3 +287,25 @@ body[data-view="day"] .day-head,body[data-view="week"] .day-head{position:sticky
   body[data-view="day"] .day-agenda{display:none}
   body[data-view="day"] .calendar-scroll,body[data-view="week"] .calendar-scroll{max-height:max(320px,calc(100dvh - 275px))}
 }
+
+/* Scala oraria proporzionata e settimana completa sugli schermi piccoli. */
+.time-col,.day-column{height:var(--day-height,1152px)}
+.day-column{background:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--hour-size,48px) - 1px),rgba(56,89,65,.22) calc(var(--hour-size,48px) - 1px),rgba(56,89,65,.22) var(--hour-size,48px)),linear-gradient(to bottom,#fff3e8 0,#fff3e8 58.3333%,#eaf3f9 58.3333%,#eaf3f9 100%)}
+.day-column:after{top:var(--split-position,672px)}
+.day-select{display:block;width:100%;padding:0;border:0;background:transparent;color:inherit;font:inherit;letter-spacing:inherit;text-align:center}
+button.day-select:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.time-agenda{display:none}
+@media(max-width:700px){
+  .week-grid.week-view{min-width:0;grid-template-columns:38px repeat(7,minmax(0,1fr))}
+  .week-grid.week-view .day-head{padding:8px 0;height:62px;font-size:9px;letter-spacing:0}
+  .week-grid.week-view .day-select{min-height:44px}
+  .week-grid.week-view .day-head b{width:27px;height:27px;font-size:13px}
+  .week-grid.week-view .time-label{right:4px;font-size:9px}
+  .week-grid.week-view .event,.week-grid.week-view .event.has-notes{display:block;padding:3px 2px;border-left-width:2px;font-size:10px;line-height:1.2}
+  .week-grid.week-view .event small,.week-grid.week-view .event .event-notes,.week-grid.week-view .event .formal-status{display:none}
+  .week-grid.week-view .event b{display:block;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body[data-view="week"] .calendar-scroll{overflow-x:hidden}
+  .time-agenda:not([hidden]){display:block;border-top:1px solid #d7e3d6;padding:14px 12px 16px}
+  .time-agenda h3{margin:0 0 10px;font:700 15px Manrope,sans-serif;color:#294632}
+  .time-agenda h4{margin:14px 0 4px;color:#4f6957;font-size:12px;text-transform:capitalize}
+}

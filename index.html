@@ -5,7 +5,7 @@
   <title>Calendario Auditorium</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=calendario-equilibrato-1">
+  <link rel="stylesheet" href="styles.css?v=calendario-mobile-2">
   <link rel="stylesheet" href="logo-auditorium.css">
 </head>
 <body>
@@ -24,7 +24,7 @@
       <div class="calendar-card">
         <div class="calendar-header"><div class="calendar-toolbar"><div class="date-controls"><button id="today" class="today-button">Oggi</button><div class="arrows"><button id="prev" aria-label="Periodo precedente">‹</button><button id="next" aria-label="Periodo successivo">›</button></div><h2 id="periodTitle"></h2></div><div class="calendar-actions"><button class="primary-button" id="newEvent" hidden><span>＋</span> Nuovo evento</button><div class="view-switch" aria-label="Vista calendario"><button data-view="day">Giorno</button><button data-view="week">Settimana</button><button data-view="month" class="selected">Mese</button></div></div></div>
         <div class="legend"><button type="button" class="legend-calendar" data-calendar="school" aria-label="Mostra gli eventi della Scuola Mazzolari"><i class="school-dot"></i> Scuola Mazzolari <small>00:00 – 14:00</small></button><button type="button" class="legend-calendar" data-calendar="town" aria-label="Mostra gli eventi del Comune di Verolanuova"><i class="town-dot"></i> Comune di Verolanuova <small>14:00 – 00:00</small></button><span class="legend-note">ORA LOCALE · EUROPA/ROMA</span></div>
-        </div><p class="month-touch-hint">Tocca un giorno per vedere i suoi eventi.</p><p class="week-scroll-hint">Scorri a destra e a sinistra per vedere tutta la settimana.</p><div class="calendar-scroll"><div id="calendar"></div></div>
+        </div><p class="month-touch-hint">Tocca un giorno per vedere i suoi eventi.</p><p class="week-scroll-hint">Tocca un giorno o un evento. Trovi tutti gli appuntamenti anche sotto il calendario.</p><div class="calendar-scroll"><div id="calendar"></div></div><section id="timeAgenda" class="time-agenda" aria-label="Appuntamenti del periodo" hidden></section>
       </div>
       <footer>© CALENDARIO AUDITORIUM · VEROLANUOVA · <a href="privacy.html">Informativa sulla privacy</a></footer>
     </section>
@@ -34,5 +34,5 @@
   <dialog id="calendarListDialog" aria-labelledby="calendarListTitle"><div class="dialog-head"><div><div class="eyebrow">ELENCO APPUNTAMENTI</div><h2 id="calendarListTitle"></h2></div><button class="close" type="button" data-close="calendarListDialog" aria-label="Chiudi">×</button></div><div id="calendarList" class="calendar-list"></div><div class="dialog-actions"><button class="secondary-button" type="button" data-close="calendarListDialog">Chiudi</button></div></dialog>
   <dialog id="detailsDialog"><div class="dialog-head"><div><div class="eyebrow" id="detailsOwner"></div><h2 id="detailsTitle"></h2></div><button class="close" data-close="detailsDialog" aria-label="Chiudi">×</button></div><p id="detailsTime"></p><p id="detailsRequest"></p><p id="detailsNotes"></p><div id="conflictContact" class="conflict-contact" hidden><p>⚠️ Questo evento si sovrappone a un evento dell’altro ente. Contattatevi per concordare gli orari.</p><div id="contactButtons" class="contact-buttons"></div></div><div class="dialog-actions"><button id="deleteEvent" class="delete-button">Elimina evento</button><button id="editEvent" class="primary-button" type="button">Modifica evento</button><button class="secondary-button" data-close="detailsDialog">Chiudi</button></div></dialog>
   <dialog id="contactDialog"><div class="dialog-head"><div><div class="eyebrow">CONTATTA L’ENTE</div><h2 id="contactTitle"></h2></div><button class="close" data-close="contactDialog" aria-label="Chiudi">×</button></div><p id="contactNumber"></p><a id="contactCall" class="primary-button contact-link" hidden>Chiama</a></dialog>
-  <script src="app.js?v=calendario-equilibrato-1"></script>
+  <script src="app.js?v=calendario-mobile-2"></script>
 </body></html>

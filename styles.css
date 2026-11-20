@@ -14,7 +14,7 @@ body[data-profile="town"] .notice b,body[data-profile="town"] .sidebar-bottom st
 body[data-profile="town"] .eyebrow{color:#6689a2}
 body[data-profile="town"] .eyebrow>span{background:#88a9be}
 
-.calendar-key{width:100%;border:0;background:transparent;text-align:left;color:inherit;border-radius:8px;cursor:pointer}.calendar-key:hover{background:#f5f7f4}.calendar-key:focus-visible{outline:2px solid #789d68;outline-offset:2px}.calendar-key[aria-pressed="false"]{opacity:.48}.calendar-key[aria-pressed="false"] .key-check{visibility:hidden}
+.calendar-key{width:100%;border:0;background:transparent;text-align:left;color:inherit;border-radius:8px;cursor:pointer}.calendar-key:hover{background:#f5f7f4}.calendar-key:focus-visible{outline:2px solid #789d68;outline-offset:2px}
 
 .overlap-warning:not([hidden]){display:block;background:#fff5d5;border:1px solid #ecd584;border-radius:8px;color:#765819;padding:12px 14px;font-size:12px;line-height:1.5;font-weight:600;overflow-wrap:anywhere}
 
@@ -85,3 +85,78 @@ body[data-profile="school"] .eyebrow>span{background:#dc9a68}
 .month-event .event-notes,.event.has-notes .event-notes{background:#ffed9c;color:#453600;border-radius:4px}
 .month-event .event-notes{padding:3px 5px}
 .event.has-notes .event-notes{padding:0 3px}
+
+/* Accesso pubblico al calendario e stato account. */
+[hidden]{display:none!important}
+.calendar-status{margin:-6px 0 20px;color:#587548;font-size:13px;line-height:1.5}
+.profile-button{border-radius:9px;padding:5px 7px}
+.profile-button:hover{background:#f2f7ef}
+.profile-button:focus-visible{outline:2px solid #789d68;outline-offset:2px}
+@media(max-width:900px){.profile-text{display:block}.profile-text b{font-size:12px}.profile-text small{font-size:10px}}
+@media(max-width:600px){.top-right{gap:8px}.demo-pill{display:none}.profile-button{gap:7px}.profile-text b{max-width:135px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+
+.profile-button{border:1px solid #dce8d8;background:#fff;padding:7px 12px}
+
+.back-link{text-align:center;margin:16px 0 0}.back-link a{display:inline-flex;align-items:center;gap:8px;border:1px solid #dce8d8;border-radius:8px;padding:10px 14px;color:#527548;font-weight:700;text-decoration:none}.back-link a:hover{background:#f2f7ef}.back-link a:focus-visible{outline:2px solid #789d68;outline-offset:2px}.back-link span{font-size:18px;line-height:1}
+
+.back-link a{background:#edf5e9;border:1px solid #83a775;color:#426638;min-height:44px;box-shadow:0 2px 6px #203a2912}.back-link span{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#d8e9d1;font-size:20px}
+
+/* Calendario: intestazioni, date ed eventi ben distinguibili. */
+.calendar-card{border-color:#c6d6c8;box-shadow:0 10px 34px #203a2918}
+.calendar-toolbar{padding-bottom:22px}
+.calendar-toolbar h2{color:#1f3d2d;font-size:19px}
+.today-button{border-color:#b4cdb5;background:#f1f7ef;color:#315b38;font-size:12px}
+.arrows button{color:#3b6146}
+.view-switch{background:#eaf1e9}
+.view-switch button{color:#48634e;font-size:11px}
+.view-switch .selected{color:#244f31}
+.legend{color:#385443;font-size:11px}
+.legend small,.legend-note{color:#5b7463;font-size:10px}
+.month-weekday,.day-head{background:#315e42;color:#fff;border-color:#315e42;font-size:11px}
+.month-weekday{padding:14px 0;letter-spacing:.06em}
+.day-head b{color:#fff}
+.day-head.today b{background:#fff;color:#315e42}
+.month-day{border-color:#cbd9cd;background:#fff;color:#243e2d;padding:9px}
+.month-day.outside{background:#edf2ed;color:#627669}
+.month-day strong{display:grid;place-items:center;width:28px;height:28px;font-size:12px;border-radius:50%}
+.month-day.today{background:#f1f8ef}
+.month-day.today strong{background:#386c46;color:#fff}
+.time-col{background:#f5f8f4}
+.time-label{color:#4f6856;font-size:10px}
+.day-column{border-color:#cbd9cd;background:repeating-linear-gradient(to bottom,transparent 0,transparent 47px,rgba(56,89,65,.22) 47px,rgba(56,89,65,.22) 48px),linear-gradient(to bottom,#fff3e8 0,#fff3e8 58.3333%,#eaf3f9 58.3333%,#eaf3f9 100%)}
+.month-event:not(.town),.event:not(.town){background:#ffdfc1;color:#713109;border-left:4px solid #c35913}
+.month-event.town,.event.town{background:#c8e2f4;color:#174968;border-left:4px solid #246e9b}
+.month-event,.event{font-size:11px;border-radius:5px}
+.month-event{padding:7px 8px}
+.month-event small,.event small{font-size:10px}
+.month-event:focus-visible,.event:focus-visible{outline:3px solid #345e42;outline-offset:1px}
+.calendar-footer{color:#607766}
+.notice-calendar{width:22px;height:22px;flex:none;margin-left:auto;color:#5e8a5b}
+.bottom-note-icon{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:10px;background:#e4f0df;color:#4f7b48!important}
+.bottom-note-icon svg{width:20px;height:20px}
+@media(max-width:600px){.notice-calendar{display:none}.calendar-toolbar h2{font-size:16px}.date-controls{gap:10px}}
+
+/* Stato della richiesta formale, nel modulo e sugli appuntamenti. */
+.formal-request{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid #dc9a96;border-radius:8px;background:#fff5f4;color:#833c38;cursor:pointer}
+.formal-request.done{border-color:#86bb8a;background:#f1faf1;color:#276435}
+.formal-request input{width:18px;height:18px;margin:0;flex:none;accent-color:#39824b}
+.formal-request b,.formal-request small{display:block}
+.formal-request b{font-size:12px}
+.formal-request small{font-size:11px;margin-top:3px}
+.formal-status{display:inline-block;max-width:100%;border:1px solid;border-radius:5px;padding:3px 5px;font-size:10px;font-weight:700;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
+.formal-status.done{background:#e6f6e8;color:#235c31;border-color:#69a976}
+.formal-status.not-done{background:#fff0ee;color:#963a35;border-color:#d6837b}
+.month-event .formal-status,.event .formal-status{margin-top:4px}
+.event.has-notes .formal-status{order:3;flex:0 1 auto;min-width:0}
+#detailsRequest{margin:0 0 14px}
+
+/* Elenco degli appuntamenti di ciascun ente. */
+.legend-calendar{border:0;background:transparent;color:inherit;padding:4px 2px;font:inherit;text-align:left;border-radius:5px}
+.legend-calendar:hover{background:#eef5e9}
+.legend-calendar:focus-visible,.calendar-list-item:focus-visible{outline:2px solid #789d68;outline-offset:2px}
+.calendar-list{display:grid;gap:8px;max-height:55vh;overflow:auto}
+.calendar-list-item{display:flex;flex-direction:column;align-items:flex-start;gap:7px;width:100%;border:1px solid #dce8dc;border-radius:9px;background:#f9fbf8;padding:12px 14px;color:#253d2d;text-align:left}
+.calendar-list-item:hover{background:#eff6ed;border-color:#abcbaa}
+.calendar-list-item strong{font-size:14px;overflow-wrap:anywhere}
+.calendar-list-date{font-size:12px;color:#4f6957;line-height:1.4;text-transform:capitalize}
+.calendar-list-empty{margin:0;color:#5d7362;font-size:14px;line-height:1.5}

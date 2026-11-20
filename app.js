@@ -11,19 +11,19 @@
   const format = (date,options) => new Intl.DateTimeFormat('it-IT',options).format(date);
   let current = dateFromKey(romeToday()), view = 'month', profile = null, selectedId = null, editingId = null;
   let events = [];
-  const visibleCalendars = new Set(['school', 'town']);
-  async function api(path,options={}){const response=await fetch(`/api/${path}`,options);if(response.status===401){location.href='index.html';throw new Error('Sessione scaduta.');}let body;try{body=await response.json()}catch{throw new Error('Risposta del server non valida.')}if(!response.ok)throw new Error(body.error || 'Operazione non riuscita.');return body;}
+  async function api(path,options={}){const response=await fetch(`/api/${path}`,options);if(response.status===401){if(path==='session')return {user:null};location.href='login.html';throw new Error('Sessione scaduta.');}let body;try{body=await response.json()}catch{throw new Error('Risposta del server non valida.')}if(!response.ok)throw new Error(body.error || 'Operazione non riuscita.');return body;}
   const request=(method,data)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   const time=m=>m===1440?'00:00':`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
   const fromServer=e=>({...e,start:time(e.startMinute),end:time(e.endMinute)});
-  const toServer=e=>({title:e.title,owner:e.owner,date:e.date,startMinute:minutes(e.start),endMinute:minutes(e.end,true),notes:e.notes});
+  const toServer=e=>({title:e.title,owner:e.owner,date:e.date,startMinute:minutes(e.start),endMinute:minutes(e.end,true),notes:e.notes,formalRequestDone:e.formalRequestDone});
   async function loadEvents(){events=(await api('events')).events.map(fromServer);render();}
   function minutes(time, end = false) { if (end && time === '00:00') return 1440; const [h,m] = time.split(':').map(Number); return h*60+m; }
   function eventButton(event, className) {
     const button = document.createElement('button'); button.type = 'button'; button.className = `${className} ${event.owner === 'town' ? 'town' : ''}`;
     const overlapping = events.some(other => other.id !== event.id && other.date === event.date && minutes(event.start) < minutes(other.end,true) && minutes(event.end,true) > minutes(other.start));
     const notes = typeof event.notes === 'string' ? event.notes.trim() : '';
-    const description = `${event.title}, ${event.start}–${event.end}${notes ? `. Note: ${notes}` : ''}${overlapping ? '. Attenzione: evento sovrapposto a un altro appuntamento' : ''}`;
+    const requestStatus=event.formalRequestDone ? 'Richiesta formale effettuata' : 'Richiesta formale non effettuata';
+    const description = `${event.title}, ${event.start}–${event.end}. ${requestStatus}${notes ? `. Note: ${notes}` : ''}${overlapping ? '. Attenzione: evento sovrapposto a un altro appuntamento' : ''}`;
     button.title = description;
     button.setAttribute('aria-label', description);
     if (overlapping) button.classList.add('has-overlap');
@@ -31,6 +31,7 @@
     if (className === 'event') { const time = document.createElement('small'); time.textContent = `${event.start} – ${event.end}`; button.append(title,time); button.style.top = `${minutes(event.start)*0.8}px`; button.style.height = `${Math.max((minutes(event.end,true)-minutes(event.start))*0.8,22)}px`; }
     else { const time = document.createElement('small'); time.textContent = `${event.start} – ${event.end}`; button.append(title,time); }
     if (notes) { const preview = document.createElement('span'); preview.className = 'event-notes'; preview.textContent = notes; button.classList.add('has-notes'); button.append(preview); }
+    const status=document.createElement('span');status.className=`formal-status ${event.formalRequestDone ? 'done' : 'not-done'}`;status.textContent=requestStatus;button.append(status);
     button.addEventListener('click', e => {e.stopPropagation(); showDetails(event);}); return button;
   }
   function render() {
@@ -41,8 +42,8 @@
       title.textContent = format(current,{month:'long',year:'numeric'});
       const grid = document.createElement('div'); grid.className='month-grid';
       ['LUN','MAR','MER','GIO','VEN','SAB','DOM'].forEach(day => {const h=document.createElement('div');h.className='month-weekday';h.textContent=day;grid.append(h);});
-      const first = new Date(current.getFullYear(),current.getMonth(),1,12), start=monday(first);
-      for (let i=0;i<42;i++) {const d=addDays(start,i), key=keyFromDate(d), cell=document.createElement('div');cell.className='month-day'+(d.getMonth()!==current.getMonth()?' outside':'');const number=document.createElement('strong');number.textContent=d.getDate();cell.append(number);events.filter(e=>e.date===key && visibleCalendars.has(e.owner)).sort((a,b)=>a.start.localeCompare(b.start)).forEach(e=>cell.append(eventButton(e,'month-event')));cell.addEventListener('click',()=>openEvent(key));grid.append(cell);}
+      const first = new Date(current.getFullYear(),current.getMonth(),1,12), start=monday(first), today=romeToday();
+      for (let i=0;i<42;i++) {const d=addDays(start,i), key=keyFromDate(d), cell=document.createElement('div');cell.className='month-day'+(d.getMonth()!==current.getMonth()?' outside':'')+(key===today?' today':'');const number=document.createElement('strong');number.textContent=d.getDate();if(key===today)number.setAttribute('aria-label',`Oggi, ${format(d,{day:'numeric',month:'long',year:'numeric'})}`);cell.append(number);events.filter(e=>e.date===key).sort((a,b)=>a.start.localeCompare(b.start)).forEach(e=>cell.append(eventButton(e,'month-event')));cell.addEventListener('click',()=>openEvent(key));grid.append(cell);}
       calendar.append(grid); return;
     }
     const start = view === 'week' ? monday(current) : current, count = view === 'week' ? 7 : 1;
@@ -52,7 +53,7 @@
     const empty=document.createElement('div');empty.className='day-head';grid.append(empty);
     for(let i=0;i<count;i++){const d=addDays(start,i),head=document.createElement('div');head.className='day-head'+(keyFromDate(d)===romeToday()?' today':'');head.append(document.createTextNode(format(d,{weekday:'short'}).replace('.','').toUpperCase()));const n=document.createElement('b');n.textContent=d.getDate();head.append(n);grid.append(head);}
     const times=document.createElement('div');times.className='time-col';for(let h=0;h<24;h++){const label=document.createElement('span');label.className='time-label';label.style.top=`${h*48+1}px`;label.textContent=`${String(h).padStart(2,'0')}:00`;times.append(label);}grid.append(times);
-    for(let i=0;i<count;i++){const d=addDays(start,i),key=keyFromDate(d),col=document.createElement('div');col.className='day-column';const dayEvents=events.filter(e=>e.date===key && visibleCalendars.has(e.owner)).sort((a,b)=>minutes(a.start)-minutes(b.start)); let group=[]; const drawGroup=()=>{const lanes=[];group.forEach(item=>{let lane=lanes.findIndex(end=>end<=minutes(item.start));if(lane<0)lane=lanes.length;lanes[lane]=minutes(item.end,true);item.lane=lane;});group.forEach(item=>{const button=eventButton(item,'event');button.style.left=`calc(${item.lane*100/lanes.length}% + 3px)`;button.style.width=`calc(${100/lanes.length}% - 6px)`;button.style.right='auto';col.append(button);});if(group.length>1){const marker=document.createElement('div');marker.className='overlap-strip';marker.setAttribute('aria-hidden','true');marker.style.top=`${Math.max(...group.map(item=>minutes(item.start)*0.8+Math.max((minutes(item.end,true)-minutes(item.start))*0.8,22)))-4}px`;col.append(marker);}};dayEvents.forEach(item=>{if(group.length && minutes(item.start)>=Math.max(...group.map(e=>minutes(e.end,true)))){drawGroup();group=[];}group.push({...item});});if(group.length)drawGroup();col.addEventListener('click',e=>{const hour=Math.min(23,Math.floor((e.clientY-col.getBoundingClientRect().top)/48));openEvent(key,hour);});grid.append(col);}
+    for(let i=0;i<count;i++){const d=addDays(start,i),key=keyFromDate(d),col=document.createElement('div');col.className='day-column';const dayEvents=events.filter(e=>e.date===key).sort((a,b)=>minutes(a.start)-minutes(b.start)); let group=[]; const drawGroup=()=>{const lanes=[];group.forEach(item=>{let lane=lanes.findIndex(end=>end<=minutes(item.start));if(lane<0)lane=lanes.length;lanes[lane]=minutes(item.end,true);item.lane=lane;});group.forEach(item=>{const button=eventButton(item,'event');button.style.left=`calc(${item.lane*100/lanes.length}% + 3px)`;button.style.width=`calc(${100/lanes.length}% - 6px)`;button.style.right='auto';col.append(button);});if(group.length>1){const marker=document.createElement('div');marker.className='overlap-strip';marker.setAttribute('aria-hidden','true');marker.style.top=`${Math.max(...group.map(item=>minutes(item.start)*0.8+Math.max((minutes(item.end,true)-minutes(item.start))*0.8,22)))-4}px`;col.append(marker);}};dayEvents.forEach(item=>{if(group.length && minutes(item.start)>=Math.max(...group.map(e=>minutes(e.end,true)))){drawGroup();group=[];}group.push({...item});});if(group.length)drawGroup();col.addEventListener('click',e=>{const hour=Math.min(23,Math.floor((e.clientY-col.getBoundingClientRect().top)/48));openEvent(key,hour);});grid.append(col);}
     calendar.append(grid);
   }
   function updateOverlapWarning() {
@@ -64,28 +65,50 @@
     warning.textContent=overlaps.length ? `Attenzione: questo orario si sovrappone a ${overlaps.length===1?'un altro evento':`${overlaps.length} altri eventi`}: ${overlaps.map(item=>`${item.title} (${item.start}–${item.end})`).join(', ')}. Puoi comunque salvare.` : '';
   }
   ['date','start','end'].forEach(name=>$('#eventForm').elements[name].addEventListener('input',updateOverlapWarning));
+  function updateFormalRequest(){const done=$('#eventForm').elements.formalRequestDone.checked;$('#requestStatus').textContent=done?'Effettuata':'Non effettuata';$('#formalRequest').classList.toggle('done',done);}
+  $('#eventForm').elements.formalRequestDone.addEventListener('change',updateFormalRequest);
   function openEvent(date=keyFromDate(current), hour) {
+    if(!profile)return;
     const form=$('#eventForm');form.reset();editingId=null;$('#eventEyebrow').textContent='NUOVO APPUNTAMENTO';$('#eventHeading').textContent='Organizza un evento.';form.elements.date.value=date;
     const owner=profile;
     form.elements.owner.value=owner;form.elements.owner.disabled=true;
     const startHour=hour!==undefined?hour:(owner==='town'?14:9);form.elements.start.value=`${String(startHour).padStart(2,'0')}:00`;form.elements.end.value=startHour===23?'00:00':`${String(startHour+1).padStart(2,'0')}:00`;
-    $('#formError').textContent='';updateOverlapWarning();$('#eventDialog').showModal();
+    $('#formError').textContent='';updateOverlapWarning();updateFormalRequest();$('#eventDialog').showModal();
   }
-  function showDetails(event){selectedId=event.id;$('#detailsOwner').textContent=ownerNames[event.owner];$('#detailsTitle').textContent=event.title;$('#detailsTime').textContent=`${format(dateFromKey(event.date),{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${event.start} – ${event.end}`;$('#detailsNotes').textContent=event.notes || 'Nessuna nota.';$('#deleteEvent').hidden=event.owner!==profile;$('#editEvent').hidden=event.owner!==profile;
+  function showDetails(event){selectedId=event.id;$('#detailsOwner').textContent=ownerNames[event.owner];$('#detailsTitle').textContent=event.title;$('#detailsTime').textContent=`${format(dateFromKey(event.date),{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${event.start} – ${event.end}`;$('#detailsRequest').textContent=event.formalRequestDone?'Richiesta formale effettuata':'Richiesta formale non effettuata';$('#detailsRequest').className=`formal-status ${event.formalRequestDone?'done':'not-done'}`;$('#detailsNotes').textContent=profile ? (event.notes || 'Nessuna nota.') : '';$('#detailsNotes').hidden=!profile;$('#deleteEvent').hidden=event.owner!==profile;$('#editEvent').hidden=event.owner!==profile;
     const conflicts=events.filter(other=>other.id!==event.id && other.owner!==event.owner && other.date===event.date && minutes(event.start)<minutes(other.end,true) && minutes(event.end,true)>minutes(other.start));
-    const contactArea=$('#conflictContact'), buttons=$('#contactButtons');buttons.replaceChildren();contactArea.hidden=conflicts.length===0;
-    if(conflicts.length){const targets=[profile==='school'?'town':'school'];targets.forEach(owner=>{const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=`Chiama ${ownerNames[owner]}`;button.addEventListener('click',()=>showContact(owner));buttons.append(button);});}
+    const contactArea=$('#conflictContact'), buttons=$('#contactButtons');buttons.replaceChildren();contactArea.hidden=!profile || conflicts.length===0;
+    if(profile && conflicts.length){const targets=[profile==='school'?'town':'school'];targets.forEach(owner=>{const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=`Chiama ${ownerNames[owner]}`;button.addEventListener('click',()=>showContact(owner));buttons.append(button);});}
     $('#detailsDialog').showModal();}
   function showContact(owner){const phone=phoneNumbers[owner],link=$('#contactCall');$('#contactTitle').textContent=ownerNames[owner];$('#contactNumber').textContent=phone ? `Numero: ${phone}` : 'Numero di telefono non ancora configurato.';link.hidden=!phone;if(phone)link.href=`tel:${phone.replace(/[^+\d]/g,'')}`;else link.removeAttribute('href');$('#contactDialog').showModal();}
-  $('#editEvent').addEventListener('click',()=>{const event=events.find(item=>item.id===selectedId);if(!event)return;$('#detailsDialog').close();openEvent(event.date);editingId=event.id;const form=$('#eventForm');form.elements.title.value=event.title;form.elements.owner.value=event.owner;form.elements.date.value=event.date;form.elements.start.value=event.start;form.elements.end.value=event.end;form.elements.notes.value=event.notes;$('#eventEyebrow').textContent='MODIFICA APPUNTAMENTO';$('#eventHeading').textContent='Modifica evento.';updateOverlapWarning();});
-  async function saveEvent(){const f=$('#eventForm');if(!f.reportValidity())return;const owner=f.elements.owner.value,start=minutes(f.elements.start.value),end=minutes(f.elements.end.value,true),error=$('#formError');if(!f.elements.title.value.trim()){error.textContent='Inserisci un titolo.';return;}if(end<=start){error.textContent='La fine deve essere successiva all’inizio, entro mezzanotte.';return;}const item={title:f.elements.title.value.trim(),owner,date:f.elements.date.value,start:f.elements.start.value,end:f.elements.end.value,notes:f.elements.notes.value.trim()};const button=$('#saveEvent');button.disabled=true;try{await api(editingId?`events?id=${encodeURIComponent(editingId)}`:'events',request(editingId?'PUT':'POST',toServer(item)));current=dateFromKey(item.date);$('#eventDialog').close();await loadEvents();}catch(e){error.textContent=e.message;}finally{button.disabled=false;}}
+  $('#editEvent').addEventListener('click',()=>{const event=events.find(item=>item.id===selectedId);if(!event)return;$('#detailsDialog').close();openEvent(event.date);editingId=event.id;const form=$('#eventForm');form.elements.title.value=event.title;form.elements.owner.value=event.owner;form.elements.date.value=event.date;form.elements.start.value=event.start;form.elements.end.value=event.end;form.elements.notes.value=event.notes;form.elements.formalRequestDone.checked=Boolean(event.formalRequestDone);updateFormalRequest();$('#eventEyebrow').textContent='MODIFICA APPUNTAMENTO';$('#eventHeading').textContent='Modifica evento.';updateOverlapWarning();});
+  async function saveEvent(){const f=$('#eventForm');if(!f.reportValidity())return;const owner=f.elements.owner.value,start=minutes(f.elements.start.value),end=minutes(f.elements.end.value,true),error=$('#formError');if(!f.elements.title.value.trim()){error.textContent='Inserisci un titolo.';return;}if(end<=start){error.textContent='La fine deve essere successiva all’inizio, entro mezzanotte.';return;}const item={title:f.elements.title.value.trim(),owner,date:f.elements.date.value,start:f.elements.start.value,end:f.elements.end.value,notes:f.elements.notes.value.trim(),formalRequestDone:f.elements.formalRequestDone.checked};const button=$('#saveEvent');button.disabled=true;try{await api(editingId?`events?id=${encodeURIComponent(editingId)}`:'events',request(editingId?'PUT':'POST',toServer(item)));current=dateFromKey(item.date);$('#eventDialog').close();await loadEvents();}catch(e){error.textContent=e.message;}finally{button.disabled=false;}}
   $('#saveEvent').addEventListener('click',saveEvent);$('#eventForm').addEventListener('submit',e=>{e.preventDefault();saveEvent()});
   $('#deleteEvent').addEventListener('click',async()=>{const button=$('#deleteEvent');button.disabled=true;try{await api(`events?id=${encodeURIComponent(selectedId)}`,{method:'DELETE'});$('#detailsDialog').close();await loadEvents();}catch(e){alert(e.message)}finally{button.disabled=false}});
-  document.querySelectorAll('[data-calendar]').forEach(button=>button.addEventListener('click',()=>{const owner=button.dataset.calendar;if(visibleCalendars.has(owner)) visibleCalendars.delete(owner);else visibleCalendars.add(owner);button.setAttribute('aria-pressed',String(visibleCalendars.has(owner)));render();}));
-  $('#newEvent').addEventListener('click',()=>openEvent());$('#profileButton').addEventListener('click',()=>$('#profileDialog').showModal());
+  function showCalendarList(owner){
+    const list=$('#calendarList'), today=romeToday();
+    const items=events.filter(event=>event.owner===owner).sort((a,b)=>{
+      const aUpcoming=a.date>=today, bUpcoming=b.date>=today;
+      if(aUpcoming!==bUpcoming)return aUpcoming?-1:1;
+      const order=a.date.localeCompare(b.date)||a.start.localeCompare(b.start);
+      return aUpcoming?order:-order;
+    });
+    $('#calendarListTitle').textContent=ownerNames[owner];list.replaceChildren();
+    if(!items.length){const empty=document.createElement('p');empty.className='calendar-list-empty';empty.textContent='Nessun evento presente per questo ente.';list.append(empty);}
+    items.forEach(event=>{
+      const button=document.createElement('button');button.type='button';button.className='calendar-list-item';
+      const title=document.createElement('strong');title.textContent=event.title;
+      const date=document.createElement('span');date.className='calendar-list-date';date.textContent=`${format(dateFromKey(event.date),{weekday:'long',day:'numeric',month:'long',year:'numeric'})} ? ${event.start} ? ${event.end}`;
+      const status=document.createElement('span');status.className=`formal-status ${event.formalRequestDone?'done':'not-done'}`;status.textContent=event.formalRequestDone?'Richiesta formale effettuata':'Richiesta formale non effettuata';
+      button.append(title,date,status);button.addEventListener('click',()=>{$('#calendarListDialog').close();showDetails(event);});list.append(button);
+    });
+    $('#calendarListDialog').showModal();
+  }
+  document.querySelectorAll('[data-calendar]').forEach(button=>button.addEventListener('click',()=>showCalendarList(button.dataset.calendar)));
+  $('#newEvent').addEventListener('click',()=>openEvent());$('#profileButton').addEventListener('click',()=>{if(profile)$('#profileDialog').showModal();else location.href='login.html';});
   document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.close).close()));
-  function setProfile(value){profile=value;document.body.dataset.profile=profile;$('#profileName').textContent=profiles[profile];$('#accountName').textContent=profiles[profile];$('#avatar').textContent=profile==='school'?'S':'C';$('#avatar').className='avatar '+(profile==='school'?'school-avatar':profile==='town'?'town-avatar':'');}
-  let user;try{user=(await api('session')).user;if(user.mustChangePassword){location.href='index.html';return;}if(!Object.hasOwn(profiles,user.role))throw new Error('Profilo non autorizzato.');setProfile(user.role);await loadEvents();}catch(e){if(e.message!=='Sessione scaduta.')alert(e.message || 'Impossibile caricare il calendario.');return;}
+  function setProfile(value){profile=value;document.body.dataset.profile=profile;$('#profileName').textContent=profiles[profile];$('#profileSubtitle').textContent='Account ente';$('#newEvent').hidden=false;$('#calendarStatus').hidden=true;$('#accountName').textContent=profiles[profile];$('#avatar').textContent=profile==='school'?'S':'C';$('#avatar').className='avatar '+(profile==='school'?'school-avatar':profile==='town'?'town-avatar':'');}
+  try{const user=(await api('session')).user;if(user && user.mustChangePassword){location.href='login.html';return;}if(user && Object.hasOwn(profiles,user.role))setProfile(user.role);await loadEvents();}catch(e){$('#calendarStatus').hidden=false;$('#calendarStatus').textContent='Impossibile caricare il calendario. Riprova più tardi.';}
   $('#logoutButton').addEventListener('click',async()=>{try{await api('logout',request('POST',{}));location.replace('index.html');}catch(e){alert(e.message)}});
   document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{view=button.dataset.view;render();}));
   $('#today').addEventListener('click',()=>{current=dateFromKey(romeToday());render();});
